@@ -1,4 +1,6 @@
 defmodule MediaWeb.ErrorView do
+  @moduledoc false
+
   use MediaWeb, :view
 
   # If you want to customize a particular status code

@@ -1,7 +1,9 @@
 defmodule MediaWeb.ErrorHelpers do
-  @moduledoc """
-  Conveniences for translating and building error messages.
-  """
+  @moduledoc false
+
+  # @moduledoc """
+  # Conveniences for translating and building error messages.
+  # """
 
   use Phoenix.HTML
 

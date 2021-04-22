@@ -1,11 +1,7 @@
 defmodule Media.Helpers do
-  @moduledoc """
-    Media.Helpers contains all the helper functions
-  """
+  @moduledoc false
 
-  @doc """
-  Returns the router helper module from the configs. Raises if the router isn't specified.
-  """
+  # Returns the router helper module from the configs. Raises if the router isn't specified.
   @spec router() :: atom()
   def router do
     case env(:router) do
@@ -23,7 +19,7 @@ defmodule Media.Helpers do
     end
   end
 
-  def active_databse do
+  def active_database do
     Application.get_env(:media, :active_database)
     |> case do
       "mongoDB" ->
@@ -49,7 +45,7 @@ defmodule Media.Helpers do
   end
 
   def db_struct(args) do
-    struct(active_databse(), %{args: args})
+    struct(active_database(), %{args: args})
   end
 
   def get_changes(data) do

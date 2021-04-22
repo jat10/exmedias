@@ -1,4 +1,5 @@
 defmodule MediaWeb.PageController do
+  @moduledoc false
   use MediaWeb, :controller
 
   def index(conn, _params) do

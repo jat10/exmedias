@@ -3,10 +3,10 @@
   Media.Routes must be "used" in your phoenix routes:
 
   ```elixir
-  use Media.Routes, scope: "/admin", pipe_through: [:browser, :authenticate]
+  use Media.Routes, scope: "/media", pipe_through: [:browser, :authenticate]
   ```
 
-  `:scope` defaults to `"/admin"`
+  `:scope` defaults to `"/media"`
 
   `:pipe_through` defaults to media's `[:media_browser]`
   """
@@ -14,7 +14,7 @@
   # use Phoenix.Router
 
   defmacro __using__(options \\ []) do
-    scoped = Keyword.get(options, :scope, "/admin")
+    scoped = Keyword.get(options, :scope, "/media")
     custom_pipes = Keyword.get(options, :pipe_through, [])
     pipes = [:media_browser] ++ custom_pipes
 

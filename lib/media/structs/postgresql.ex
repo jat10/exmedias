@@ -1,5 +1,5 @@
 defmodule PostgreSQL do
-  @moduledoc "Responsible for routing the database access to PostgreSQL"
+  @moduledoc false
 
   defstruct args: []
 end

@@ -1,5 +1,5 @@
 defmodule MongoDB do
-  @moduledoc "MongoDB persistence Layer"
+  @moduledoc false
   defstruct args: []
 
   defimpl DB, for: MongoDB do

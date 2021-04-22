@@ -2,6 +2,21 @@ defmodule Media.Schema do
   @moduledoc """
     This is the media schema model.
     It represents the media properties and their types.
+    ```elixir
+    schema "media" do
+      field(:tags, {:array, :string})
+      field(:title, :string)
+      field(:author, :string)
+      field(:contents_used, {:array, :string})
+      ## [%{"size"=> 1_000, url=> "http://image.com/image/1", "filename"=> "image/1"}]
+      field(:files, {:array, :map})
+      field(:type, :string)
+      field(:locked_status, :string, default: "locked")
+      field(:private_status, :string, dedfault: "private")
+
+      timestamps()
+  end
+  ```elixir
   """
   @common_metadata ~w(platform url size type filename)a
   @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
@@ -14,8 +29,7 @@ defmodule Media.Schema do
     field(:tags, {:array, :string})
     field(:title, :string)
     field(:author, :string)
-    field(:contents_used, {:array, :string})
-    ## the map keys will be platforms
+    field(:contents_used, {:array, :string}, default: [])
     ## [%{"size"=> 1_000, url=> "http://image.com/image/1", "filename"=> "image/1"}]
     field(:files, {:array, :map})
     field(:type, :string)
@@ -41,13 +55,13 @@ defmodule Media.Schema do
     # )
   end
 
-  def validate_files(%Ecto.Changeset{valid?: false} = changeset, _files), do: changeset
+  defp validate_files(%Ecto.Changeset{valid?: false} = changeset, _files), do: changeset
 
-  def validate_files(changeset, files) when is_nil(files), do: changeset
+  defp validate_files(changeset, files) when is_nil(files), do: changeset
 
-  def validate_files(changeset, files) when files == [], do: changeset
+  defp validate_files(changeset, files) when files == [], do: changeset
 
-  def validate_files(changeset, files) do
+  defp validate_files(changeset, files) do
     type = changeset |> get_field(:type)
 
     files
@@ -58,7 +72,7 @@ defmodule Media.Schema do
     end
   end
 
-  def validate_contents(files, type) do
+  defp validate_contents(files, type) do
     {_valid, result} =
       files
       |> Enum.reduce(
@@ -76,9 +90,9 @@ defmodule Media.Schema do
     result
   end
 
-  def validate_content(file, _type) when file == %{}, do: {:error, "Do not provide empty files"}
+  defp validate_content(file, _type) when file == %{}, do: {:error, "Do not provide empty files"}
 
-  def validate_content(file, type) when is_map(file) do
+  defp validate_content(file, type) when is_map(file) do
     {:ok, file} =
       file
       |> Morphix.atomorphify()
@@ -101,13 +115,13 @@ defmodule Media.Schema do
     end
   end
 
-  def validate_content(_files, _type),
+  defp validate_content(_files, _type),
     do: {:error, "The format of the files sent is not supported, please send a list of files"}
 
-  def mapify(res) when is_struct(res), do: Map.from_struct(res)
-  def mapify(res), do: res
+  defp mapify(res) when is_struct(res), do: Map.from_struct(res)
+  defp mapify(res), do: res
 
-  def available_platforms do
+  defp available_platforms do
     ["desktop", "mobile"]
   end
 end
