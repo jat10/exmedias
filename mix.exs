@@ -10,7 +10,13 @@ defmodule Media.MixProject do
       compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      name: "Media",
+      docs: [
+        main: "Media", # The main page in the docs
+        # logo: "path/to/logo.png",
+        extras: ["README.md"]
+      ]
     ]
   end
 
@@ -55,7 +61,8 @@ defmodule Media.MixProject do
       {:httpoison, "~> 1.8", override: true},
       {:morphix, "~> 0.8.0"},
       {:mongodb, ">= 0.0.0"},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
 

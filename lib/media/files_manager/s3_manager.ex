@@ -4,6 +4,7 @@ defmodule Media.S3Manager do
     from S3 configured bucket.
   """
   alias ExAws.{S3, S3.Upload, STS}
+  alias Media.Helpers
 
   @spec upload_file(
           binary
@@ -21,7 +22,7 @@ defmodule Media.S3Manager do
       # |> File.stream!()
       |> Upload.stream_file()
       |> S3.upload(
-        Application.get_env(:media, :aws_bucket_name),
+        Helpers.env(:aws_bucket_name),
         "#{destination}/#{filename}",
         content_type: MIME.from_path(filename)
       )
@@ -48,14 +49,14 @@ defmodule Media.S3Manager do
   end
 
   def delete_file(path) do
-    Application.get_env(:media, :aws_bucket_name)
+    Helpers.env(:aws_bucket_name)
     |> S3.delete_object(path)
     |> ExAws.request!()
   end
 
   # def get_file(filename) do
   #   aws =
-  #     Application.get_env(:media, :aws_bucket_name)
+  #     Helpers.env(:aws_bucket_name)
   #     |> S3.list_objects(prefix: filename)
   #     |> ExAws.request!()
 
@@ -78,7 +79,7 @@ defmodule Media.S3Manager do
 
   def fetch_file(contents) do
     file = hd(contents)
-    bucket = Application.get_env(:media, :aws_bucket_name)
+    bucket = Helpers.env(:aws_bucket_name)
     path = "https://s3.amazonaws.com/#{bucket}/#{file.key}"
     {:ok, %{id: file.e_tag, filename: file.key, path: path, bucket: bucket}}
   end
@@ -107,7 +108,7 @@ defmodule Media.S3Manager do
   end
 
   def upload_file_base64(filename, image_base64, destination) do
-    image_bucket = Application.get_env(:media, :aws_bucket_name)
+    image_bucket = Helpers.env(:aws_bucket_name)
     image_binary = Base.decode64!(image_base64)
 
     image_bucket
@@ -157,14 +158,14 @@ defmodule Media.S3Manager do
 
     {:ok, %{} = sig_data, _} =
       Sigaws.sign_req(url,
-        region: "us-east-1",
+        region: Application.get_env(:ex_aws, :region) || "us-east-1",
         service: "s3",
         headers: headers,
         access_key: Application.get_env(:ex_aws, :access_key_id),
         secret: Application.get_env(:ex_aws, :secret_access_key)
       )
 
-    ## TODO we don't need to actually get the object
+    ## TO DO we don't need to actually get the object
     ## we only need to send the url headers and params to the front
     HTTPoison.get(
       url,

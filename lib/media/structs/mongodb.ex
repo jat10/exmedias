@@ -1,12 +1,13 @@
-defmodule MongoDB do
-  @moduledoc "MongoDB persistence Layer"
+defmodule Media.MongoDB do
+  @moduledoc false
   defstruct args: []
 
-  defimpl DB, for: MongoDB do
+  defimpl DB, for: Media.MongoDB do
     @media_collection "media"
     alias BSON.ObjectId
     alias Media.Helpers
-    alias Media.Schema, as: Media
+    alias Media.MongoDB
+    alias Media.MongoDB.Schema, as: Media
 
     def get(%MongoDB{args: %{id: id}}) do
       case Mongo.find_one(Helpers.repo(), @media_collection, %{_id: ObjectId.decode!(id)}) do
@@ -70,7 +71,7 @@ defmodule MongoDB do
           {:error, %{error: "#{@media_collection} does not exist"}}
 
         {data, false} ->
-          ## TODO we should cover this to return a proper error in case the changeset
+          ## TO DO we should cover this to return a proper error in case the changeset
           ## is not valid
           {:error, %{error: data}}
 

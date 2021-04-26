@@ -1,4 +1,5 @@
 defmodule MediaWeb.UserSocket do
+  @moduledoc false
   use Phoenix.Socket
 
   ## Channels

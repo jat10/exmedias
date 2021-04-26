@@ -1,11 +1,11 @@
 defmodule Media.Helpers do
-  @moduledoc """
-    Media.Helpers contains all the helper functions
-  """
+  @moduledoc false
 
-  @doc """
-  Returns the router helper module from the configs. Raises if the router isn't specified.
-  """
+  alias Media.MongoDB
+  alias Media.PostgreSQL
+
+  @media_collection "media"
+  # Returns the router helper module from the configs. Raises if the router isn't specified.
   @spec router() :: atom()
   def router do
     case env(:router) do
@@ -23,7 +23,7 @@ defmodule Media.Helpers do
     end
   end
 
-  def active_databse do
+  def active_database do
     Application.get_env(:media, :active_database)
     |> case do
       "mongoDB" ->
@@ -49,7 +49,7 @@ defmodule Media.Helpers do
   end
 
   def db_struct(args) do
-    struct(active_databse(), %{args: args})
+    struct(active_database(), %{args: args})
   end
 
   def get_changes(data) do
@@ -150,5 +150,15 @@ defmodule Media.Helpers do
       |> Map.put(:id, id)
       |> Map.put(:inserted_at, date)
     )
+  end
+
+  def create_media_collection do
+    Mongo.command(repo(), %{
+      createIndexes: @media_collection,
+      indexes: [
+        %{key: %{author: 1}, name: "name_idx", unique: false},
+        %{key: %{type: 1}, name: "type_idx", unique: false}
+      ]
+    })
   end
 end
