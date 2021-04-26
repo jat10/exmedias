@@ -1,6 +1,10 @@
 defmodule Media.Helpers do
   @moduledoc false
 
+  alias Media.MongoDB
+  alias Media.PostgreSQL
+
+  @media_collection "media"
   # Returns the router helper module from the configs. Raises if the router isn't specified.
   @spec router() :: atom()
   def router do
@@ -146,5 +150,15 @@ defmodule Media.Helpers do
       |> Map.put(:id, id)
       |> Map.put(:inserted_at, date)
     )
+  end
+
+  def create_media_collection do
+    Mongo.command(repo(), %{
+      createIndexes: @media_collection,
+      indexes: [
+        %{key: %{author: 1}, name: "name_idx", unique: false},
+        %{key: %{type: 1}, name: "type_idx", unique: false}
+      ]
+    })
   end
 end

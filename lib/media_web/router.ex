@@ -1,4 +1,4 @@
-  defmodule Media.Routes do
+defmodule Media.Routes do
   @moduledoc """
   Media.Routes must be "used" in your phoenix routes:
 
@@ -30,7 +30,11 @@
       scope unquote(scoped), MediaWeb do
         pipe_through(unquote(pipes))
 
-        get("/", PageController, :index, as: :media_home)
+        get("/", PageController, :index, as: :media)
+        # left here for reference
+        #  on how to upload media from a form to S3
+        post "/upload", PageController, :upload, as: :media
+
         # get("/dashboard", HomeController, :dashboard, as: :media_dashboard)
       end
     end

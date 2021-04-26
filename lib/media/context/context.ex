@@ -13,7 +13,7 @@ defmodule Media.Context do
   You can insert `media` by calling the following function
 
   ```elixir
-  Media.insert(
+  Media.Context.insert(
     %{
       title: "Media title",
       author: "AUTHOR_ID",
@@ -38,7 +38,7 @@ defmodule Media.Context do
   You can get a `media` by its id with
 
   ```elixir
-  Media.get(%{id: YOUR_MEDIA_ID})
+  Media.Context.get(%{id: YOUR_MEDIA_ID})
   ```
 
   """
@@ -52,7 +52,7 @@ defmodule Media.Context do
   You can delete a `media` by its id with
 
   ```elixir
-  Media.delete(%{id: YOUR_MEDIA_ID})
+  Media.Context.delete(%{id: YOUR_MEDIA_ID})
   ```
 
   """
@@ -68,7 +68,7 @@ defmodule Media.Context do
   You can update `media` by calling the following function
 
   ```elixir
-  Media.insert(
+  Media.Context.insert(
     %{
       title: "Media title",
       author: "AUTHOR_ID",
