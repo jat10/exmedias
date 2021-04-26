@@ -157,7 +157,8 @@ defmodule Media.Helpers do
       createIndexes: @media_collection,
       indexes: [
         %{key: %{author: 1}, name: "name_idx", unique: false},
-        %{key: %{type: 1}, name: "type_idx", unique: false}
+        %{key: %{type: 1}, name: "type_idx", unique: false},
+        %{key: %{contents_used: 1}, name: "contents_idx", unique: false}
       ]
     })
   end
