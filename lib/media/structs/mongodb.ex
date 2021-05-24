@@ -10,6 +10,11 @@ defmodule Media.MongoDB do
     alias Media.{Cartesian, FiltersMongoDB, Helpers, MongoDB}
     alias Media.MongoDB.Schema, as: MediaSchema
     alias Media.Platforms.Platform
+    ## TO DO to be altered in next issues
+    def list_platforms(_args) do
+      Mongo.find(Media.Helpers.repo(), "platform", %{})
+      |> Media.Helpers.format_result(schema_to_module("platform"))
+    end
 
     @doc """
     Media.Context.list_medias(%{
@@ -51,7 +56,7 @@ defmodule Media.MongoDB do
                {sort,
                 FiltersMongoDB.init(
                   filters
-                  |> Cartesian.product(),
+                  |> Cartesian.possible_combinations(),
                   operations
                 )} do
           {[], sort}
@@ -217,7 +222,7 @@ defmodule Media.MongoDB do
       ]
 
       %{"result" => result, "total" => total} =
-        Mongo.aggregate(:mongo, "media", pipeline)
+        Mongo.aggregate(Helpers.repo(), "media", pipeline)
         |> Enum.to_list()
         |> Enum.at(0)
 
@@ -230,7 +235,7 @@ defmodule Media.MongoDB do
     end
 
     defp handle_count(collection, filter) do
-      case Mongo.count_documents(:mongo, collection, filter) do
+      case Mongo.count_documents(Helpers.repo(), collection, filter) do
         {:ok, count} when is_integer(count) ->
           count
 
@@ -258,7 +263,7 @@ defmodule Media.MongoDB do
       with true <- data.valid?,
            {:ok, result} <-
              Mongo.insert_one(Helpers.repo(), collection, Helpers.get_changes(data)) do
-        get(%MongoDB{args: %{id: ObjectId.encode!(result.inserted_id)}}, collection)
+        {:ok, get(%MongoDB{args: ObjectId.encode!(result.inserted_id)}, collection)}
       else
         {:error, %{write_errors: [%{"code" => 11_000}]}} ->
           {:error, "#{collection |> String.capitalize()} already exists"}
@@ -274,7 +279,7 @@ defmodule Media.MongoDB do
     ## TO DO work this out to be generic
     def update(data, id, collection) do
       case Mongo.update_one(
-             :mongo,
+             Helpers.repo(),
              collection,
              %{_id: ObjectId.decode!(id)},
              %{
@@ -295,7 +300,7 @@ defmodule Media.MongoDB do
     end
 
     def delete(%MongoDB{args: id}, collection) do
-      Mongo.delete_one(:mongo, collection, %{_id: ObjectId.decode!(id)})
+      Mongo.delete_one(Helpers.repo(), collection, %{_id: ObjectId.decode!(id)})
       |> case do
         {:ok, %{deleted_count: 1}} ->
           {:ok, "#{collection |> String.capitalize()} with id #{id} deleted successfully"}

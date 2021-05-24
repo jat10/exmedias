@@ -97,6 +97,10 @@ defmodule Media.Context do
     DB.get_platform(Helpers.db_struct(args))
   end
 
+  def list_platforms(args) do
+    DB.get_platform(Helpers.db_struct(args))
+  end
+
   def update_platform(args) do
     DB.update_platform(Helpers.db_struct(args))
   end

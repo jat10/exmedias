@@ -18,11 +18,11 @@ defmodule Media.MongoDB.Schema do
   end
   ```elixir
   """
-  @common_metadata ~w(platform url size type filename)a
+  @common_metadata ~w(platform_id url size type filename)a
   @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
   use Ecto.Schema
   import Ecto.Changeset
-  @fields ~w(title author contents_used tags type locked_status private_status files)a
+  @fields ~w(title author seo_tag contents_used tags type locked_status private_status files)a
   # @derive {Jason.Encoder, only: @fields}
   schema "media" do
     field(:tags, {:array, :string})
@@ -34,12 +34,30 @@ defmodule Media.MongoDB.Schema do
     field(:type, :string)
     field(:locked_status, :string, default: "locked")
     field(:private_status, :string, dedfault: "private")
+    field(:seo_tag, :string)
     ## virtual as this will not be stored in the database but will be returned when querying
     ## so that we have a proper mapping with the schema
     field(:number_of_contents, :integer, virtual: true)
 
     timestamps()
   end
+
+  # Media.Context.insert_media(%{
+  #   title: "Media 2",
+  #   seo_tag: "seo optimization2",
+  #   author: "Zaher2",
+  #   contents_used: ["2"],
+  #   type: "image",
+  #   files: [
+  #     %{
+  #       url: "http://something.com",
+  #       size: 4_000,
+  #       type: "png",
+  #       filename: "image.png",
+  #       platform_id: "mobile"
+  #     }
+  #   ]
+  # })
 
   @doc """
   In the changeset function, we validate the user's inputs.
@@ -115,7 +133,8 @@ defmodule Media.MongoDB.Schema do
             file
             |> Map.keys()
             |> Enum.all?(&(&1 in (@common_metadata ++ Map.get(@metadata_per_type, type, []))))},
-         {:platforms, true} <- {:platforms, Map.get(file, :platform) in available_platforms()} do
+         {:platforms, true} <-
+           {:platforms, Map.get(file, :platform_id) in available_platforms_ids()} do
       {true, file}
     else
       {:keys, false} ->
@@ -134,7 +153,8 @@ defmodule Media.MongoDB.Schema do
   # defp mapify(res) when is_struct(res), do: Map.from_struct(res)
   # defp mapify(res), do: res
 
-  defp available_platforms do
-    ["desktop", "mobile"]
+  defp available_platforms_ids do
+    DB.list_platforms(%Media.MongoDB{})
+    |> Enum.map(&Map.get(&1, :id))
   end
 end

@@ -34,13 +34,41 @@ defmodule Media.Schema.File do
     field(:type, :string)
     field(:size, :integer)
     field(:duration, :integer)
-    belongs_to :platforms, Platform, on_replace: :delete
+    belongs_to :platform, Platform, on_replace: :delete
   end
 
   def changeset(file, attrs) do
     file
     |> cast(attrs, @fields)
-    |> validate_required([:type, :filename, :size, :url])
+    |> validate_required([:type, :filename, :size, :url, :platform_id])
+    ## validate file extensions
+    |> validate_platform_id()
+  end
+
+  def validate_platform_id(changeset) do
+    platform_id = changeset |> get_field(:platform_id)
+
+    with true <- valid_id?(platform_id), false <- is_nil(get_platform(platform_id)) do
+      changeset
+    else
+      false ->
+        changeset |> add_error(:platform, "Id provided is invalid")
+
+      true ->
+        changeset |> add_error(:platform, "Platform does not exist")
+    end
+  end
+
+  defp valid_id?(id) when is_integer(id) do
+    true
+  end
+
+  defp valid_id?(id) when is_binary(id) do
+    Integer.parse(id)
+    |> case do
+      :error -> false
+      {_id, _} -> true
+    end
   end
 
   defp get_platform(nil), do: nil

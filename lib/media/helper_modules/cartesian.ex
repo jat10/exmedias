@@ -1,19 +1,19 @@
 defmodule Media.Cartesian do
   @moduledoc """
-  This module is a helper to compute the cartesian product of a list of lists
+  This module is a helper to compute the cartesian possible_combinations of a list of lists
   In other words, it outputs all the possible combinations of this list of list
   [[1,2,3], [4,5,6]] will produce
   [1,4], [1,5], [1,6], [2,4], [2,5], [2,6], [3,4], [3,5], [3,6]
   """
-  def product([]) do
+  def possible_combinations([]) do
     []
   end
 
-  def product(nil) do
+  def possible_combinations(nil) do
     []
   end
 
-  def product([head | rest]) do
+  def possible_combinations([head | rest]) do
     iterate(head, rest, [])
     |> Enum.map(&Enum.reverse/1)
   end

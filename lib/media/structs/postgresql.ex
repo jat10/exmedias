@@ -16,13 +16,13 @@ defmodule Media.PostgreSQL do
     alias Media.PostgreSQL.Schema, as: MediaSchema
     import Ecto.Query, warn: false
 
-    def insert(%{args: attrs}) do
+    def insert_media(%{args: attrs}) do
       %MediaSchema{}
       |> MediaSchema.changeset(attrs)
       |> Helpers.repo().insert()
     end
 
-    def update(%{args: %{media: media, params: params}}) do
+    def update_media(%{args: %{media: media, params: params}}) do
       media
       |> MediaSchema.update_changeset(params)
       |> Helpers.repo().update()
@@ -54,7 +54,7 @@ defmodule Media.PostgreSQL do
 
           full_media_query()
           |> FiltersPostgreSQL.init(
-            filters |> Cartesian.product(),
+            filters |> Cartesian.possible_combinations(),
             operation
           )
           |> group_by([m], m.id)

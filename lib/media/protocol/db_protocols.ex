@@ -7,6 +7,7 @@ defprotocol DB do
   def update_media(struct)
   def delete_media(struct)
 
+  def list_platforms(struct)
   def get_platform(struct)
   def insert_platform(struct)
   def update_platform(struct)
