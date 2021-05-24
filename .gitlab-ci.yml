@@ -34,5 +34,6 @@ test:
     - workerbuild
   coverage: /\[TOTAL\]\s+(\d+\.\d+)%/
   script:
-    - mix do deps.get, coveralls
+    - mix deps.get
+    - mix coveralls
 
