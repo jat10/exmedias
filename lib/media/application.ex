@@ -4,11 +4,24 @@ defmodule Media.Application do
   @moduledoc false
 
   use Application
+  alias Media.Helpers
+
+  mongo_db_test =
+    {Mongo,
+     [
+       name: :mongo,
+       hostname: Application.get_env(:media, :db)[:mongo_url],
+       database: Application.get_env(:media, :db)[:database],
+       port: Application.get_env(:media, :db)[:port],
+       username: Application.get_env(:media, :db)[:mongo_user],
+       password: Application.get_env(:media, :db)[:mongo_passwd],
+       ssl: Application.get_env(:media, :db)[:mongo_ssl],
+       pool_size: Application.get_env(:media, :db)[:pool_size]
+     ]}
 
   def start(_type, _args) do
     children = [
       # Start the Ecto repository
-      # Media.Repo,
       # Start the Telemetry supervisor
       MediaWeb.Telemetry,
       # Start the PubSub system
@@ -18,6 +31,29 @@ defmodule Media.Application do
       # Start a worker by calling: Media.Worker.start_link(arg)
       # {Media.Worker, arg}
     ]
+
+    children =
+      if Mix.env() == :test do
+        databases = [
+          {Mongo,
+           [
+             name: :mongo,
+             hostname: Application.get_env(:media, :db)[:mongo_url],
+             database: Application.get_env(:media, :db)[:database],
+             port: Application.get_env(:media, :db)[:port],
+             username: Application.get_env(:media, :db)[:mongo_user],
+             password: Application.get_env(:media, :db)[:mongo_passwd],
+             ssl: Application.get_env(:media, :db)[:mongo_ssl],
+             pool_size: Application.get_env(:media, :db)[:pool_size]
+           ]},
+          Media.Repo,
+          {Task, fn -> Helpers.create_collections() end}
+        ]
+
+        children ++ databases
+      else
+        children
+      end
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

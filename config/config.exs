@@ -26,6 +26,18 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+config :media,
+  otp_app: :your_app,
+  active_database: "mongoDB",
+  repo: :mongo,
+  router: YouAppWeb.Router,
+  aws_bucket_name: "your_bucket",
+  aws_role_name: "you_role_to_assume_arn",
+  ## the IAM user id,
+  aws_iam_id: "403016165142",
+  content_schema: Blogs.Schema.Article,
+  content_table: "blogs"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"
