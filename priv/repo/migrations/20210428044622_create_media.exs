@@ -19,7 +19,7 @@ defmodule Media.Repo.Migrations.CreateMedia do
       add(:metadata, :map)
       add(:files, {:array, :jsonb}) ## mobile or desktop
       add(:locked_status, :string, default: "locked")
-      add(:private_status, :string, dedfault: "private")
+      add(:private_status, :string, default: "private")
 
     timestamps()
     end

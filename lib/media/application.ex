@@ -6,19 +6,6 @@ defmodule Media.Application do
   use Application
   alias Media.Helpers
 
-  mongo_db_test =
-    {Mongo,
-     [
-       name: :mongo,
-       hostname: Application.get_env(:media, :db)[:mongo_url],
-       database: Application.get_env(:media, :db)[:database],
-       port: Application.get_env(:media, :db)[:port],
-       username: Application.get_env(:media, :db)[:mongo_user],
-       password: Application.get_env(:media, :db)[:mongo_passwd],
-       ssl: Application.get_env(:media, :db)[:mongo_ssl],
-       pool_size: Application.get_env(:media, :db)[:pool_size]
-     ]}
-
   def start(_type, _args) do
     children = [
       # Start the Ecto repository
