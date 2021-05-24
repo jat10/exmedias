@@ -34,6 +34,9 @@ defmodule Media.MongoDB.Schema do
     field(:type, :string)
     field(:locked_status, :string, default: "locked")
     field(:private_status, :string, dedfault: "private")
+    ## virtual as this will not be stored in the database but will be returned when querying
+    ## so that we have a proper mapping with the schema
+    field(:number_of_contents, :integer, virtual: true)
 
     timestamps()
   end
@@ -128,8 +131,8 @@ defmodule Media.MongoDB.Schema do
   defp validate_content(_files, _type),
     do: {:error, "The format of the files sent is not supported, please send a list of files"}
 
-  defp mapify(res) when is_struct(res), do: Map.from_struct(res)
-  defp mapify(res), do: res
+  # defp mapify(res) when is_struct(res), do: Map.from_struct(res)
+  # defp mapify(res), do: res
 
   defp available_platforms do
     ["desktop", "mobile"]
