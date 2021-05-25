@@ -82,3 +82,4 @@ defmodule Media.PostgreSQL.Schema do
   defp get_content(id) do
     Helpers.repo().get(Helpers.env(:content_schema), id)
   end
+end
