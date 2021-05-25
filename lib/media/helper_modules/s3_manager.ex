@@ -6,15 +6,6 @@ defmodule Media.S3Manager do
   alias ExAws.{S3, S3.Upload, STS}
   alias Media.Helpers
 
-  @spec upload_file(
-          binary
-          | maybe_improper_list(
-              binary | maybe_improper_list(any, binary | []) | char,
-              binary | []
-            ),
-          binary,
-          any
-        ) :: {:error, <<_::248>>} | {:ok, %{bucket: any, filename: any, id: any, url: any}}
   def upload_file(filename, path, destination) do
     # File.write!(filename, Base.decode64!(file))
     aws =
@@ -23,7 +14,10 @@ defmodule Media.S3Manager do
       |> Upload.stream_file()
       |> S3.upload(
         Helpers.env(:aws_bucket_name),
-        "#{destination}/#{filename}",
+        "#{destination}/#{
+          filename
+          |> unique_filename()
+        }",
         content_type: MIME.from_path(filename)
       )
       |> ExAws.request!()

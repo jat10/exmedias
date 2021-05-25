@@ -35,7 +35,7 @@ In case your project relies on a ``MongoDB``, in your  ``application.ex`` file a
   {
   Task,
     fn ->
-      Media.Helpers.create_media_collection()
+      Media.Helpers.create_collections()
     end
   }
   ```

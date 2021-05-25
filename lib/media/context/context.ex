@@ -19,15 +19,15 @@ defmodule Media.Context do
       author: "AUTHOR_ID",
       tags: ["technology"],
       type: "image",
-      files: [%{platform: "dekstop", type: "png", size: 2_500}]
+      files: [%{platform_id: "dekstop", type: "png", size: 2_500}],
       locked_status: "locked",
       private_status: "public",
     }
   )
   ```
   """
-  def insert(args) do
-    DB.insert(Helpers.db_struct(args))
+  def insert_media(args) do
+    DB.insert_media(Helpers.db_struct(args))
   end
 
   @doc """
@@ -42,8 +42,12 @@ defmodule Media.Context do
   ```
 
   """
-  def get(args) do
-    DB.get(Helpers.db_struct(args))
+  def get_media(args) do
+    DB.get_media(Helpers.db_struct(args))
+  end
+
+  def list_medias(args \\ %{}) do
+    DB.list_medias(Helpers.db_struct(args))
   end
 
   @doc """
@@ -56,8 +60,8 @@ defmodule Media.Context do
   ```
 
   """
-  def delete(args) do
-    DB.delete(Helpers.db_struct(args))
+  def delete_media(args) do
+    DB.delete_media(Helpers.db_struct(args))
   end
 
   @doc """
@@ -74,14 +78,34 @@ defmodule Media.Context do
       author: "AUTHOR_ID",
       tags: ["technology"],
       type: "image",
-      files: [%{platform: "dekstop", type: "png", size: 2_500}]
+      files: [%{platform_id: 1, type: "png", size: 2_500}],
       locked_status: "locked",
       private_status: "public",
     }
   )
   ```
   """
-  def update(args) do
-    DB.update(Helpers.db_struct(args))
+  def update_media(args) do
+    DB.update_media(Helpers.db_struct(args))
+  end
+
+  def insert_platform(args) do
+    DB.insert_platform(Helpers.db_struct(args))
+  end
+
+  def get_platform(args) do
+    DB.get_platform(Helpers.db_struct(args))
+  end
+
+  def list_platforms(args) do
+    DB.list_platforms(Helpers.db_struct(args))
+  end
+
+  def update_platform(args) do
+    DB.update_platform(Helpers.db_struct(args))
+  end
+
+  def delete_platform(args) do
+    DB.delete_platform(Helpers.db_struct(args))
   end
 end
