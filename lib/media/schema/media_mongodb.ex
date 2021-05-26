@@ -22,6 +22,8 @@ defmodule Media.MongoDB.Schema do
   @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
   use Ecto.Schema
   import Ecto.Changeset
+  alias BSON.ObjectId
+  alias Media.Helpers
   @fields ~w(title author seo_tag contents_used tags type locked_status private_status files)a
   # @derive {Jason.Encoder, only: @fields}
   schema "media" do
@@ -99,7 +101,7 @@ defmodule Media.MongoDB.Schema do
     |> validate_contents(type)
     |> case do
       {:error, error} -> changeset |> add_error(:files, error)
-      _files -> changeset
+      files -> changeset |> put_change(:files, files)
     end
   end
 
@@ -109,8 +111,9 @@ defmodule Media.MongoDB.Schema do
       |> Enum.reduce(
         {true, []},
         fn
-          file, {true, _acc} ->
+          file, {true, acc} ->
             {valid, content} = validate_content(file, type)
+            content = if valid, do: [content] ++ acc, else: content
             {true and valid, content}
 
           _file, {false, result} ->
@@ -128,14 +131,21 @@ defmodule Media.MongoDB.Schema do
       file
       |> Morphix.atomorphify()
 
+    required_fields = @common_metadata ++ Map.get(@metadata_per_type, type, [])
+
+    provided_fields =
+      file
+      |> Map.keys()
+
     with {:keys, true} <-
            {:keys,
-            file
-            |> Map.keys()
-            |> Enum.all?(&(&1 in (@common_metadata ++ Map.get(@metadata_per_type, type, []))))},
+            provided_fields
+            |> Enum.all?(&(&1 in required_fields and valid_value(&1, file |> Map.get(&1)))) and
+              :erlang.length(provided_fields) == :erlang.length(required_fields)},
+         platform_id <- Map.get(file, :platform_id),
          {:platforms, true} <-
-           {:platforms, Map.get(file, :platform_id) in available_platforms_ids()} do
-      {true, file}
+           {:platforms, platform_id in available_platforms_ids()} do
+      {true, file |> Map.put(:platform_id, ObjectId.decode!(platform_id))}
     else
       {:keys, false} ->
         {false,
@@ -146,6 +156,24 @@ defmodule Media.MongoDB.Schema do
         {false, {:error, "Invalid Platform, Make sure to provide an existing platform"}}
     end
   end
+
+  defp valid_value(:duration, duration_value) do
+    cond do
+      is_nil(duration_value) ->
+        false
+
+      is_integer(duration_value) ->
+        true
+
+      is_binary(duration_value) and Helpers.binary_is_integer?(duration_value |> Integer.parse()) ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  defp valid_value(_, _), do: true
 
   defp validate_content(_files, _type),
     do: {:error, "The format of the files sent is not supported, please send a list of files"}

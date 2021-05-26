@@ -79,15 +79,14 @@ defmodule Media.FiltersMongoDB do
           )
       end)
 
-    # {initial_computations, computed_filters} =
-    computed_filters =
+    {_initial_computations, computed_filters} =
       Enum.reduce(computed_filters, {[], []}, fn filter,
-                                                 {_initial_computations_acc, computed_filters_acc} ->
+                                                 {initial_computations_acc, computed_filters_acc} ->
         ## For later maybe the build computed condition
         ## will need further initial computation like computing the array size of ``contents_used``
         ## in this case let the function return a tuple {initial_computation, computed filters}
         computed_filters = build_computed_condition(filter, computed_op)
-        computed_filters ++ computed_filters_acc
+        {initial_computations_acc, computed_filters ++ computed_filters_acc}
       end)
 
     {computed_filters, normal_filters}

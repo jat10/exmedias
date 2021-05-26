@@ -43,7 +43,7 @@ config :media,
 
 # ## POSTGRESQL SETUP
 config :media,
-  otp_app: :blogs,
+  # otp_app: :blogs,
   active_database: "postgreSQL",
   # repo: Media.Repo,
   router: Media.TestWeb.Router,
@@ -51,7 +51,7 @@ config :media,
   aws_role_name: "privateBucketRead",
   ## the IAM user id,
   aws_iam_id: "403016165142",
-  # content_schema: Blogs.Schema.Article,
+  content_schema: Media.Test.Content,
   content_table: "content"
 
 # We don't run a server during test. If one is required,

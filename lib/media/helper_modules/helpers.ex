@@ -385,4 +385,7 @@ defmodule Media.Helpers do
   end
 
   ### FILTERS HELPERS ###
+
+  def binary_is_integer?(:error), do: false
+  def binary_is_integer?({_duration, _}), do: true
 end
