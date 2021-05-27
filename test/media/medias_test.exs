@@ -217,7 +217,7 @@ defmodule Media.MediasTest do
                })
     end
 
-    test "get_platform!/1 returns the platform with given id" do
+    test "get_media/1 returns the media with given id" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -269,6 +269,11 @@ defmodule Media.MediasTest do
               }} = Media.Context.get_media(media.id)
 
       # end
+    end
+
+    test "get_media/1 with invalid ID" do
+      assert {:error, :not_found, _} = Media.Context.get_media(0)
+      assert {:error, _errormessage} = Media.Context.get_media("asd")
     end
 
     test "create_media/1 with valid data creates a media" do

@@ -152,7 +152,7 @@ defmodule Media.MongoDB do
           {:ok, result |> List.first()}
 
         false ->
-          {:error, "The id provided: `#{id}` is not valid. Please provide a valid object ID."}
+          {:error, Helpers.id_error_message(id)}
       end
     end
 

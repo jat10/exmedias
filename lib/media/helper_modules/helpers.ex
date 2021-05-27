@@ -394,4 +394,11 @@ defmodule Media.Helpers do
   end
 
   def valid_object_id?(_id), do: false
+
+  def valid_postgres_id?(id) when is_integer(id), do: true
+  def valid_postgres_id?(id) when is_binary(id), do: binary_is_integer?(Integer.parse(id))
+  def valid_postgres_id?(_id), do: false
+
+  def id_error_message(id),
+    do: "The id provided: #{inspect(id)} is not valid. Please provide a valid object ID."
 end

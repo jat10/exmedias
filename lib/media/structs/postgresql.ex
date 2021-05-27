@@ -92,8 +92,10 @@ defmodule Media.PostgreSQL do
     end
 
     def get_media(%{args: media_id}) do
-      case get_full_media(media_id) do
-        nil -> {:error, :not_found, "Media does not exist"}
+      with true <- Helpers.valid_postgres_id?(media_id), nil <- get_full_media(media_id) do
+        {:error, :not_found, "Media does not exist"}
+      else
+        false -> {:error, Helpers.id_error_message(media_id)}
         media -> {:ok, media}
       end
     end
