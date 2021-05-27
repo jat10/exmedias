@@ -3,8 +3,6 @@ defmodule Media.MediasTest do
   alias Media.{MongoDB, PostgreSQL}
   import Mock
 
-  alias Media.Platforms
-
   describe "Medias CRUD with PostgreSQL" do
     alias Media.Helpers
     alias Media.Platforms.Platform
@@ -54,7 +52,7 @@ defmodule Media.MediasTest do
       :ok
     end
 
-    test "list_medias/0 returns all platforms (not paginated)" do
+    test "list_medias/0 returns all medias (not paginated)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -112,7 +110,7 @@ defmodule Media.MediasTest do
       # end
     end
 
-    test "list_medias/0 returns all platforms (paginated)" do
+    test "list_medias/0 returns all medias (paginated)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -150,7 +148,7 @@ defmodule Media.MediasTest do
                Media.Context.list_medias(%{per_page: 1, page: 3})
     end
 
-    test "list_medias/0 returns all platforms (filtered)" do
+    test "list_medias/0 returns all medias (filtered)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -505,7 +503,7 @@ defmodule Media.MediasTest do
       :ok
     end
 
-    test "list_medias/0 returns all platforms (not paginated)" do
+    test "list_medias/0 returns all medias (not paginated)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -563,7 +561,7 @@ defmodule Media.MediasTest do
       # end
     end
 
-    test "list_medias/0 returns all platforms (paginated)" do
+    test "list_medias/0 returns all medias (paginated)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -601,7 +599,7 @@ defmodule Media.MediasTest do
                Media.Context.list_medias(%{per_page: 1, page: 3})
     end
 
-    test "list_medias/0 returns all platforms (filtered)" do
+    test "list_medias/0 returns all medias (filtered)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
       platform = create_platform()
 
@@ -720,6 +718,13 @@ defmodule Media.MediasTest do
               }} = Media.Context.get_media(media.id)
     end
 
+    test "get_media/1 with invalid ID" do
+      assert {:error, _} = Media.Context.get_media(0)
+      assert {:error, _} = Media.Context.get_media("123")
+
+      assert {:error, :not_found, _} = Media.Context.get_media("012345678912345678912345")
+    end
+
     test "create_media/1 with valid data creates a media" do
       platform = create_platform()
 
@@ -732,10 +737,6 @@ defmodule Media.MediasTest do
           size: 4_000_000,
           platform_id: platform.id
         }
-      ]
-
-      files_to_retreive = [
-        files |> Enum.at(0) |> Map.put(:platform, platform)
       ]
 
       media = media_fixture(%{files: files})

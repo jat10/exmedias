@@ -145,12 +145,14 @@ defmodule Media.MongoDB do
     def delete_platform(args), do: delete(args, @platform_collection)
 
     def get_media(%MongoDB{args: id}) do
-      case get_full_media(id) do
-        %{total: 0} ->
-          {:error, :not_found, @media_collection |> String.capitalize()}
-
+      with true <- Helpers.valid_object_id?(id), %{total: 0} <- get_full_media(id) do
+        {:error, :not_found, @media_collection |> String.capitalize()}
+      else
         %{result: result} ->
           {:ok, result |> List.first()}
+
+        false ->
+          {:error, "The id provided: `#{id}` is not valid. Please provide a valid object ID."}
       end
     end
 

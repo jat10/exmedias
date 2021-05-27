@@ -39,13 +39,6 @@ defmodule Media.PostgreSQL.Schema do
     field(:private_status, :string, dedfault: "private")
     field(:seo_tag, :string)
 
-    # many_to_many(
-    #   (Helpers.env(:content_table) || "none") |> String.to_atom(),
-    #   Helpers.env(:content_schema),
-    #   join_through: "medias_contents",
-    #   join_keys: [media_id: :id, content_id: :id]
-    # )
-
     timestamps()
   end
 

@@ -388,4 +388,10 @@ defmodule Media.Helpers do
 
   def binary_is_integer?(:error), do: false
   def binary_is_integer?({_duration, _}), do: true
+
+  def valid_object_id?(id) when is_binary(id) do
+    String.match?(id, ~r/^[0-9a-f]{24}$/)
+  end
+
+  def valid_object_id?(_id), do: false
 end
