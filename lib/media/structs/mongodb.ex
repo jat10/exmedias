@@ -76,9 +76,7 @@ defmodule Media.MongoDB do
       query_media(filters_pipe, sort_pipe, pagination_pipe)
     end
 
-    @doc """
-    filters to pipeline
-    """
+    # filters to pipeline
     defp format_fitlers(filters) do
       if filters == [], do: [], else: [%{"$match" => %{"$and" => filters}}]
     end
@@ -96,15 +94,15 @@ defmodule Media.MongoDB do
 
     defp handle_sort(nil), do: []
 
-    def get_media(%MongoDB{args: id}) do
-      case get_full_media(id) do
-        [] ->
-          {:error, :not_found, "media"}
+    # def get_media(%MongoDB{args: id}) do
+    #   case get_full_media(id) do
+    #     [] ->
+    #       {:error, :not_found, "media"}
 
-        item ->
-          item |> Map.get(:result) |> Enum.at(0)
-      end
-    end
+    #     item ->
+    #       item |> Map.get(:result) |> Enum.at(0)
+    #   end
+    # end
 
     def insert_media(args), do: insert(args, @media_collection)
 
@@ -146,13 +144,25 @@ defmodule Media.MongoDB do
 
     def delete_platform(args), do: delete(args, @platform_collection)
 
-    def get(%MongoDB{args: id}, collection) do
-      case get_full_media(id) do
-        %{total: 0} ->
-          {:error, :not_found, collection}
-
+    def get_media(%MongoDB{args: id}) do
+      with true <- Helpers.valid_object_id?(id), %{total: 0} <- get_full_media(id) do
+        {:error, :not_found, @media_collection |> String.capitalize()}
+      else
         %{result: result} ->
-          result |> List.first()
+          {:ok, result |> List.first()}
+
+        false ->
+          {:error, Helpers.id_error_message(id)}
+      end
+    end
+
+    def get(%MongoDB{args: id}, collection) do
+      case Mongo.find_one(:mongo, collection, %{_id: ObjectId.decode!(id)}) do
+        nil ->
+          {:error, :not_found, collection |> String.capitalize()}
+
+        item ->
+          Helpers.format_item(item, schema_to_module(collection), id)
       end
     end
 
@@ -230,22 +240,22 @@ defmodule Media.MongoDB do
 
       %{
         result: Helpers.format_result(result, schema_to_module("media")),
-        total: total |> Enum.at(0) |> Map.get("count")
+        total: total |> Enum.at(0, %{}) |> Map.get("count", 0)
       }
     end
 
-    defp handle_count(collection, filter) do
-      case Mongo.count_documents(Helpers.repo(), collection, filter) do
-        {:ok, count} when is_integer(count) ->
-          count
+    # defp handle_count(collection, filter) do
+    #   case Mongo.count_documents(Helpers.repo(), collection, filter) do
+    #     {:ok, count} when is_integer(count) ->
+    #       count
 
-        {:error, _} ->
-          0
+    #     {:error, _} ->
+    #       0
 
-        _ ->
-          0
-      end
-    end
+    #     _ ->
+    #       0
+    #   end
+    # end
 
     defp media_by_id(id) do
       Mongo.find_one(Helpers.repo(), @media_collection, %{_id: ObjectId.decode!(id)})

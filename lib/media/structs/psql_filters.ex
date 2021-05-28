@@ -102,19 +102,19 @@ defmodule Media.FiltersPostgreSQL do
 
     case operation do
       "=" ->
-        dynamic([p], fragment("COUNT(?) = ?", p.id, ^value))
+        dynamic([p, m, c, joint_table], fragment("COUNT(?) = ?", joint_table.content_id, ^value))
 
       "<" ->
-        dynamic([p], fragment("COUNT(?) < ?", p.id, ^value))
+        dynamic([p, m, c, joint_table], fragment("COUNT(?) < ?", joint_table.content_id, ^value))
 
       ">" ->
-        dynamic([p], fragment("COUNT(?) > ?", p.id, ^value))
+        dynamic([p, m, c, joint_table], fragment("COUNT(?) < ?", joint_table.content_id, ^value))
 
       "<=" ->
-        dynamic([p], fragment("COUNT(?) <= ?", p.id, ^value))
+        dynamic([p, m, c, joint_table], fragment("COUNT(?) < ?", joint_table.content_id, ^value))
 
       ">=" ->
-        dynamic([p], fragment("COUNT(?) >= ?", p.id, ^value))
+        dynamic([p, m, c, joint_table], fragment("COUNT(?) < ?", joint_table.content_id, ^value))
 
       "<>" ->
         dynamic_between(op)
@@ -127,7 +127,17 @@ defmodule Media.FiltersPostgreSQL do
   defp dynamic_between(op) do
     from = Map.get(op["number_of_contents"], "from", "0") |> Integer.parse() |> elem(0)
     to = Map.get(op["number_of_contents"], "to", "0") |> Integer.parse() |> elem(0)
-    dynamic([p], fragment("COUNT(?) > ? and COUNT(?) < ?", p.id, ^from, p.id, ^to))
+
+    dynamic(
+      [p, c, m, joint_table],
+      fragment(
+        "COUNT(?) > ? and COUNT(?) < ?",
+        joint_table.content_id,
+        ^from,
+        joint_table.content_id,
+        ^to
+      )
+    )
   end
 
   def build_where_and(filter, op) do

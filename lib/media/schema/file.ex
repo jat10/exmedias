@@ -22,10 +22,12 @@ defmodule Media.Schema.File do
   ```elixir
   """
   @fields ~w(url size type filename duration platform_id)a
+  @videos_ext ["mp4"]
   use Ecto.Schema
   import Ecto.Changeset
   alias Media.Helpers
   alias Media.Platforms.Platform
+
   # @derive {Jason.Encoder, only: @fields}
   @primary_key false
   embedded_schema do
@@ -41,9 +43,38 @@ defmodule Media.Schema.File do
     file
     |> cast(attrs, @fields)
     |> validate_required([:type, :filename, :size, :url, :platform_id])
+    |> validate_video()
     ## validate file extensions
     |> validate_platform_id()
   end
+
+  def validate_video(changeset) do
+    validate_video(changeset, changeset |> get_field(:type))
+  end
+
+  defp validate_video(%Ecto.Changeset{valid?: false} = changeset, _type), do: changeset
+
+  defp validate_video(%Ecto.Changeset{valid?: true} = changeset, video_ext)
+       when video_ext in @videos_ext do
+    duration_field = changeset |> get_field(:duration)
+
+    cond do
+      is_nil(duration_field) ->
+        changeset |> add_error(:duration, "Videos must be provided with their duration")
+
+      is_integer(duration_field) ->
+        changeset
+
+      is_binary(duration_field) and Helpers.binary_is_integer?(duration_field |> Integer.parse()) ->
+        changeset
+
+      true ->
+        changeset
+        |> add_error(:duration, "The duration of the video must be an integer (in seconds)")
+    end
+  end
+
+  defp validate_video(%Ecto.Changeset{valid?: true} = changeset, _type), do: changeset
 
   def validate_platform_id(changeset) do
     platform_id = changeset |> get_field(:platform_id)
@@ -70,6 +101,8 @@ defmodule Media.Schema.File do
       {_id, _} -> true
     end
   end
+
+  defp valid_id?(_id), do: false
 
   defp get_platform(nil), do: nil
 

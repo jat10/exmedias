@@ -52,17 +52,25 @@ defmodule Media.PostgreSQL do
 
           # related_schema = Helpers.env(:content_schema) || Helpers.env(:content_table)
 
-          full_media_query()
-          |> FiltersPostgreSQL.init(
-            filters |> Cartesian.possible_combinations(),
-            operation
-          )
-          |> group_by([m], m.id)
-          |> add_offset(offset)
-          |> add_limit(limit)
-          |> add_sort(sort)
-          |> Helpers.repo().all()
-          |> Enum.map(fn %{files: files, media: media} = args -> format_media(args) end)
+          result =
+            full_media_query()
+            |> FiltersPostgreSQL.init(
+              filters |> Cartesian.possible_combinations(),
+              operation
+            )
+            |> group_by([m], m.id)
+            |> add_offset(offset)
+            |> add_limit(limit)
+            |> add_sort(sort)
+            |> Helpers.repo().all()
+
+          total = result |> Enum.at(0, %{}) |> Map.get(:total)
+
+          result =
+            result
+            |> Enum.map(fn %{files: _files, media: _media} = args -> format_media(args) end)
+
+          %{result: result, total: total}
       end
     end
 
@@ -84,8 +92,10 @@ defmodule Media.PostgreSQL do
     end
 
     def get_media(%{args: media_id}) do
-      case get_full_media(media_id) do
-        nil -> {:error, :not_found, "Media does not exist"}
+      with true <- Helpers.valid_postgres_id?(media_id), nil <- get_full_media(media_id) do
+        {:error, :not_found, "Media does not exist"}
+      else
+        false -> {:error, Helpers.id_error_message(media_id)}
         media -> {:ok, media}
       end
     end
@@ -113,6 +123,7 @@ defmodule Media.PostgreSQL do
       media
       |> Map.put(:files, files |> Helpers.atomize_keys())
       |> Map.put(:number_of_contents, Map.get(args, :number_of_contents))
+      |> Map.delete(:total)
     end
 
     def full_media_query do
@@ -130,7 +141,8 @@ defmodule Media.PostgreSQL do
       |> select([m, f, p, c], %{
         media: m,
         files: fragment("JSONB_AGG(JSONB_BUILD_OBJECT('platform', ?, 'file', ?))", p, f),
-        number_of_contents: count(c.content_id)
+        number_of_contents: count(c.content_id),
+        total: fragment("count(?) OVER()", m.id)
       })
       |> group_by([m], m.id)
     end

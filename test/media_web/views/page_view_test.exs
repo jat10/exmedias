@@ -1,3 +1,3 @@
 defmodule MediaWeb.PageViewTest do
-  use MediaWeb.ConnCase, async: true
+  use MediaWeb.ConnCase
 end

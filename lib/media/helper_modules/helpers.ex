@@ -385,4 +385,20 @@ defmodule Media.Helpers do
   end
 
   ### FILTERS HELPERS ###
+
+  def binary_is_integer?(:error), do: false
+  def binary_is_integer?({_duration, _}), do: true
+
+  def valid_object_id?(id) when is_binary(id) do
+    String.match?(id, ~r/^[0-9a-f]{24}$/)
+  end
+
+  def valid_object_id?(_id), do: false
+
+  def valid_postgres_id?(id) when is_integer(id), do: true
+  def valid_postgres_id?(id) when is_binary(id), do: binary_is_integer?(Integer.parse(id))
+  def valid_postgres_id?(_id), do: false
+
+  def id_error_message(id),
+    do: "The id provided: #{inspect(id)} is not valid. Please provide a valid object ID."
 end

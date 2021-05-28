@@ -5,7 +5,7 @@ defmodule Media.Platforms.Platform do
   use Ecto.Schema
   import Ecto.Changeset
 
-  schema "platforms" do
+  schema "platform" do
     field :description, :string
     field :height, :integer
     field :name, :string
