@@ -106,11 +106,12 @@ defmodule Media.MongoDB do
 
     def insert_media(args), do: insert(args, @media_collection)
 
-    def update_media(%MongoDB{args: %{id: id} = args} = media) do
-      with %MediaSchema{} = media <- get(media, @media_collection),
-           data <- Media.changeset(media, args),
+    ## Bwhen submitting the form this will be called inside the controller after the file management is done
+    def update_media(%MongoDB{args: %{id: id} = args}) do
+      with %MediaSchema{} = media <- get(%MongoDB{args: id}, @media_collection),
+           data <- MediaSchema.changeset(media, args),
            {_data, true} <- {data, data.valid?} do
-        update(args, id, @media_collection)
+        update(data, id, @media_collection)
       else
         {:error, :not_found, _collection} ->
           {:error, %{error: "#{@media_collection} does not exist"}}
@@ -257,13 +258,13 @@ defmodule Media.MongoDB do
     #   end
     # end
 
-    defp media_by_id(id) do
-      Mongo.find_one(Helpers.repo(), @media_collection, %{_id: ObjectId.decode!(id)})
-      |> case do
-        nil -> {:error, :not_found, @media_collection}
-        item -> item
-      end
-    end
+    # defp media_by_id(id) do
+    #   Mongo.find_one(Helpers.repo(), @media_collection, %{_id: ObjectId.decode!(id)})
+    #   |> case do
+    #     nil -> {:error, :not_found, @media_collection}
+    #     item -> item
+    #   end
+    # end
 
     def insert(%MongoDB{args: args}, collection) do
       module = schema_to_module(collection)
@@ -302,7 +303,7 @@ defmodule Media.MongoDB do
            ) do
         {:ok, _result} ->
           ## why accessing the databse again let's try return the result variable
-          {:ok, get(%MongoDB{args: %{id: id}}, collection)}
+          {:ok, get(%MongoDB{args: id}, collection)}
 
         _err ->
           {:error, %{error: "Unknown DB Error"}}

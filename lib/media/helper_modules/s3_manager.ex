@@ -14,8 +14,9 @@ defmodule Media.S3Manager do
       |> Upload.stream_file()
       |> S3.upload(
         Helpers.env(:aws_bucket_name),
-        "#{destination}/#{
+        "#{destination}/#{filename}#{
           filename
+          |> Path.extname()
           |> unique_filename()
         }",
         content_type: MIME.from_path(filename)
@@ -48,24 +49,24 @@ defmodule Media.S3Manager do
     |> ExAws.request!()
   end
 
-  # def get_file(filename) do
-  #   aws =
-  #     Helpers.env(:aws_bucket_name)
-  #     |> S3.list_objects(prefix: filename)
-  #     |> ExAws.request!()
+  def get_file(filename) do
+    aws =
+      Helpers.env(:aws_bucket_name)
+      |> S3.list_objects(prefix: filename)
+      |> ExAws.request!()
 
-  #   case aws.status_code do
-  #     200 ->
-  #       %{
-  #         contents: contents
-  #       } = aws.body
+    case aws.status_code do
+      200 ->
+        %{
+          contents: contents
+        } = aws.body
 
-  #       fetch_file(contents)
+        fetch_file(contents)
 
-  #     _ ->
-  #       {:error, "File not found"}
-  #   end
-  # end
+      _ ->
+        {:error, "File not found"}
+    end
+  end
 
   def fetch_file([]) do
     {:error, "File not found"}
@@ -145,8 +146,30 @@ defmodule Media.S3Manager do
     }
   end
 
-  def read_private_object(credentials) do
-    url = "https://eweevtestbucketprivate.s3.amazonaws.com/zaher/docs?Action=GetObject"
+  @doc """
+  This function toggles the object privacy.
+  It takes the object key as a first argument and the new privacy status as a second argument
+  The object key is the object filename.
+  """
+  def change_object_privacy(object_key, "public") do
+    change_privacy(object_key, :public_read)
+  end
+
+  def change_object_privacy(object_key, "private") do
+    change_privacy(object_key, :private)
+  end
+
+  defp change_privacy(object_key, acl_permission) do
+    S3.put_object_acl(
+      Application.get_env(:media, :aws_bucket_name),
+      object_key,
+      [{:acl, acl_permission}]
+    )
+    |> ExAws.request!()
+  end
+
+  def read_private_object(credentials, destination) do
+    url = "https://eweevtestbucketprivate.s3.amazonaws.com/#{destination}?Action=GetObject"
     # url = "https://s3.amazonaws.com/Action=GetObject"
     headers = %{"X-Amz-Secure-Token" => credentials.session_token}
 

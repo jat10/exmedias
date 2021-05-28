@@ -22,10 +22,16 @@ defmodule Media.PostgreSQL do
       |> Helpers.repo().insert()
     end
 
-    def update_media(%{args: %{media: media, params: params}}) do
-      media
-      |> MediaSchema.update_changeset(params)
-      |> Helpers.repo().update()
+    def update_media(%{args: %{id: id} = params}) do
+      case get_media_by_id(id) do
+        {:ok, media} ->
+          media
+          |> MediaSchema.changeset(params)
+          |> Helpers.repo().update()
+
+        {:error, :not_found, _} = res ->
+          res
+      end
     end
 
     @doc """
@@ -124,6 +130,14 @@ defmodule Media.PostgreSQL do
       |> Map.put(:files, files |> Helpers.atomize_keys())
       |> Map.put(:number_of_contents, Map.get(args, :number_of_contents))
       |> Map.delete(:total)
+    end
+
+    defp get_media_by_id(id) do
+      Helpers.repo().get(MediaSchema, id)
+      |> case do
+        nil -> {:error, :not_found, "Media"}
+        media -> {:ok, media}
+      end
     end
 
     def full_media_query do

@@ -105,12 +105,12 @@ defmodule Media.PlatformsTest do
 
     alias Media.Platforms.Platform
     @valid_attrs %{description: "some description", height: 42, name: "some name", width: 42}
-    @update_attrs %{
-      description: "some updated description",
-      height: 43,
-      name: "some updated name",
-      width: 43
-    }
+    # @update_attrs %{
+    #   description: "some updated description",
+    #   height: 43,
+    #   name: "some updated name",
+    #   width: 43
+    # }
     @invalid_attrs %{description: nil, height: nil, name: nil, width: nil}
 
     #   test "list_platforms/0 returns all platforms" do
