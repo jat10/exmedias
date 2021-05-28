@@ -26,10 +26,6 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-config :ex_aws,
-  access_key_id: "AKIAV3VNCU4LJWQ6W4CD",
-  secret_access_key: "a01xDHRxf2mgwo1NnnD89ygS03v8l3smqPrEVdP0"
-
 config :media,
   otp_app: :your_app,
   active_database: "mongoDB",
