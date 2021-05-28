@@ -508,7 +508,7 @@ defmodule Media.MediasTest do
              } = media.files |> Enum.find(&(Map.get(&1, :s3_id) == another_s3_id))
     end
 
-    test "update_media/2 with invalid platfor returns error" do
+    test "update_media/2 with invalid platform returns error" do
       platform = create_platform()
       s3_id = uuid()
 
@@ -1065,7 +1065,7 @@ defmodule Media.MediasTest do
              } = media.files |> Enum.find(&(Map.get(&1, :s3_id) == another_s3_id))
     end
 
-    test "update_media/2 with invalid platfor returns error" do
+    test "update_media/2 with invalid platform returns error" do
       platform = create_platform()
       s3_id = uuid()
 
