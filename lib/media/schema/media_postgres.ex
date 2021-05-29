@@ -21,8 +21,8 @@ defmodule Media.PostgreSQL.Schema do
   end
   ```elixir
   """
-  @common_metadata ~w(platform_id url size type filename)a
-  @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
+  # @common_metadata ~w(platform_id url size type filename s3_id)a
+  # @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
   use Ecto.Schema
   import Ecto.Changeset
   alias Media.Helpers
@@ -33,7 +33,7 @@ defmodule Media.PostgreSQL.Schema do
     field(:tags, {:array, :string})
     field(:title, :string)
     field(:author, :string)
-    embeds_many(:files, File)
+    embeds_many(:files, File, on_replace: :delete)
     field(:type, :string)
     field(:locked_status, :string, default: "locked")
     field(:private_status, :string, dedfault: "private")

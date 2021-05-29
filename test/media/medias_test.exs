@@ -3,9 +3,16 @@ defmodule Media.MediasTest do
   alias Media.{MongoDB, PostgreSQL}
   import Mock
 
+  @update_attrs %{
+    title: "some updated title",
+    author: "some updated author",
+    locked_status: "unlocked",
+    private_status: "public"
+  }
   describe "Medias CRUD with PostgreSQL" do
     alias Media.Helpers
-    alias Media.Platforms.Platform
+
+    # alias Media.Platforms.Platform
 
     @platform_valid_attrs %{
       description: "some description",
@@ -23,9 +30,7 @@ defmodule Media.MediasTest do
       title: "some media title",
       type: "video"
     }
-    # @update_attrs %{
-    #   title: "some updated title"
-    # }
+
     @invalid_attrs_author %{
       author: nil,
       locked_status: "locked",
@@ -63,7 +68,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -77,6 +83,7 @@ defmodule Media.MediasTest do
                    author: "some author id",
                    files: [
                      %{
+                       id: _fileid,
                        duration: 240,
                        filename: "video.mp4",
                        platform: %{
@@ -121,7 +128,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -158,7 +166,8 @@ defmodule Media.MediasTest do
           filename: "image.jpeg",
           url: "http://url.com",
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -169,11 +178,12 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
-      media0 = media_fixture(%{files: files})
+      media_fixture(%{files: files})
 
       media1 =
         media_fixture(%{
@@ -228,7 +238,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -286,7 +297,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -344,7 +356,8 @@ defmodule Media.MediasTest do
           filename: "video.mp4",
           url: "http://url.com",
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -365,7 +378,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: "asd",
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -386,7 +400,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -404,6 +419,7 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
+          s3_id: uuid(),
           platform_id: platform.id
         }
       ]
@@ -412,27 +428,127 @@ defmodule Media.MediasTest do
                Media.Context.insert_media(@invalid_attrs_type |> Map.put(:files, files))
     end
 
-    # test "update_media/2 with valid data updates the platform" do
-    #   platform = create_platform()
+    test "update_media/2 with valid data updates the media" do
+      platform = create_platform()
+      another_platform = create_platform(%{name: "mobile"})
+      s3_id = uuid()
 
-    #   files = [
-    #     %{
-    #       type: "mp4",
-    #       filename: "video.mp4",
-    #       url: "http://url.com",
-    #       duration: 240,
-    #       size: 4_000_000,
-    #       platform_id: platform.id
-    #     }
-    #   ]
+      files = [
+        %{
+          type: "mp4",
+          s3_id: s3_id,
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id
+        }
+      ]
 
-    #   media =
-    #     media_fixture(%{files: files})
-    #     |> Map.put(:number_of_contents, 0)
+      media =
+        media_fixture(%{files: files})
+        |> Map.put(:number_of_contents, 0)
 
-    #   assert {:ok, platform} = Media.Context.update_media(@update_attrs |> Map.put(:id, media.id))
-    #   assert platform.title == "some updated title"
-    # end
+      platform_id = platform.id
+      s3_id = uuid()
+      another_platform_id = another_platform.id
+      another_s3_id = uuid()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform_id,
+          s3_id: s3_id
+        },
+        %{
+          type: "mp4",
+          filename: "video2.mp4",
+          url: "http://url2.com",
+          duration: 300,
+          size: 5_000_000,
+          platform_id: another_platform_id,
+          s3_id: another_s3_id
+        }
+      ]
+
+      assert {:ok, media} =
+               Media.Context.update_media(
+                 @update_attrs
+                 |> Map.put(:id, media.id)
+                 |> Map.put(:files, files)
+               )
+
+      assert media.title == "some updated title"
+      assert media.author == "some updated author"
+      assert media.locked_status == "unlocked"
+      assert media.private_status == "public"
+
+      assert %{
+               type: "mp4",
+               filename: "video.mp4",
+               url: "http://url.com",
+               duration: 240,
+               size: 4_000_000,
+               platform_id: ^platform_id,
+               s3_id: ^s3_id
+             } = media.files |> Enum.find(&(Map.get(&1, :s3_id) == s3_id))
+
+      assert %{
+               type: "mp4",
+               filename: "video2.mp4",
+               url: "http://url2.com",
+               duration: 300,
+               size: 5_000_000,
+               platform_id: ^another_platform_id,
+               s3_id: ^another_s3_id
+             } = media.files |> Enum.find(&(Map.get(&1, :s3_id) == another_s3_id))
+    end
+
+    test "update_media/2 with invalid platform returns error" do
+      platform = create_platform()
+      s3_id = uuid()
+
+      files = [
+        %{
+          type: "mp4",
+          s3_id: s3_id,
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id
+        }
+      ]
+
+      media = media_fixture(%{files: files})
+      s3_id = uuid()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video2.mp4",
+          url: "http://url.com",
+          duration: 300,
+          size: 4_000_000,
+          platform_id: "invalid ID",
+          s3_id: s3_id
+        }
+      ]
+
+      assert {:error,
+              %Ecto.Changeset{
+                valid?: false
+              }} =
+               Media.Context.update_media(
+                 @update_attrs
+                 |> Map.put(:id, media.id)
+                 |> Map.put(:files, files)
+               )
+    end
 
     # test "update_media/2 with invalid data returns error changeset" do
     #   media = media_fixture()
@@ -455,7 +571,6 @@ defmodule Media.MediasTest do
   describe "Medias CRUD with MongoDB" do
     alias BSON.ObjectId
     alias Media.Helpers
-    alias Media.Platforms.Platform
     alias Media.TestHelpers
 
     @platform_valid_attrs %{
@@ -474,9 +589,6 @@ defmodule Media.MediasTest do
       title: "some media title",
       type: "video"
     }
-    # @update_attrs %{
-    #   title: "some updated title"
-    # }
     @invalid_attrs_author %{
       author: nil,
       locked_status: "locked",
@@ -519,7 +631,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -577,7 +690,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -614,7 +728,8 @@ defmodule Media.MediasTest do
           filename: "image.jpeg",
           url: "http://url.com",
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -625,7 +740,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -682,7 +798,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -740,7 +857,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -767,7 +885,8 @@ defmodule Media.MediasTest do
                     platform_id: ^platform_id,
                     size: 4_000_000,
                     type: "mp4",
-                    url: "http://url.com"
+                    url: "http://url.com",
+                    s3_id: _fileid
                   }
                 ],
                 id: _id,
@@ -791,7 +910,8 @@ defmodule Media.MediasTest do
           filename: "video.mp4",
           url: "http://url.com",
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -812,7 +932,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: "asd",
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -833,7 +954,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -851,7 +973,8 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          platform_id: platform.id
+          platform_id: platform.id,
+          s3_id: uuid()
         }
       ]
 
@@ -859,27 +982,127 @@ defmodule Media.MediasTest do
                Media.Context.insert_media(@invalid_attrs_type |> Map.put(:files, files))
     end
 
-    # test "update_media/2 with valid data updates the platform" do
-    #   platform = create_platform()
+    test "update_media/2 with valid data updates the media" do
+      platform = create_platform()
+      another_platform = create_platform(%{name: "mobile"})
+      s3_id = uuid()
 
-    #   files = [
-    #     %{
-    #       type: "mp4",
-    #       filename: "video.mp4",
-    #       url: "http://url.com",
-    #       duration: 240,
-    #       size: 4_000_000,
-    #       platform_id: platform.id
-    #     }
-    #   ]
+      files = [
+        %{
+          type: "mp4",
+          s3_id: s3_id,
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id
+        }
+      ]
 
-    #   media =
-    #     media_fixture(%{files: files})
-    #     |> Map.put(:number_of_contents, 0)
+      media =
+        media_fixture(%{files: files})
+        |> Map.put(:number_of_contents, 0)
 
-    #   assert {:ok, platform} = Media.Context.update_media(@update_attrs |> Map.put(:id, media.id))
-    #   assert platform.title == "some updated title"
-    # end
+      platform_id = platform.id
+      s3_id = uuid()
+      another_platform_id = another_platform.id
+      another_s3_id = uuid()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform_id,
+          s3_id: s3_id
+        },
+        %{
+          type: "mp4",
+          filename: "video2.mp4",
+          url: "http://url2.com",
+          duration: 300,
+          size: 5_000_000,
+          platform_id: another_platform_id,
+          s3_id: another_s3_id
+        }
+      ]
+
+      platform_id = ObjectId.decode!(platform_id)
+      another_platform_id = ObjectId.decode!(another_platform_id)
+
+      assert {:ok, media} =
+               Media.Context.update_media(
+                 @update_attrs
+                 |> Map.put(:id, media.id)
+                 |> Map.put(:files, files)
+               )
+
+      assert media.title == "some updated title"
+      assert media.author == "some updated author"
+      assert media.locked_status == "unlocked"
+      assert media.private_status == "public"
+
+      assert %{
+               type: "mp4",
+               filename: "video.mp4",
+               url: "http://url.com",
+               duration: 240,
+               size: 4_000_000,
+               platform_id: ^platform_id,
+               s3_id: ^s3_id
+             } = media.files |> Enum.find(&(Map.get(&1, :s3_id) == s3_id))
+
+      assert %{
+               type: "mp4",
+               filename: "video2.mp4",
+               url: "http://url2.com",
+               duration: 300,
+               size: 5_000_000,
+               platform_id: ^another_platform_id,
+               s3_id: ^another_s3_id
+             } = media.files |> Enum.find(&(Map.get(&1, :s3_id) == another_s3_id))
+    end
+
+    test "update_media/2 with invalid platform returns error" do
+      platform = create_platform()
+      s3_id = uuid()
+
+      files = [
+        %{
+          type: "mp4",
+          s3_id: s3_id,
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id
+        }
+      ]
+
+      media = media_fixture(%{files: files})
+      s3_id = uuid()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: "invalid ID",
+          s3_id: s3_id
+        }
+      ]
+
+      assert {:error, %Ecto.Changeset{errors: [files: _]}} =
+               Media.Context.update_media(
+                 @update_attrs
+                 |> Map.put(:id, media.id)
+                 |> Map.put(:files, files)
+               )
+    end
 
     # test "update_media/2 with invalid data returns error changeset" do
     #   media = media_fixture()
@@ -900,9 +1123,10 @@ defmodule Media.MediasTest do
   end
 
   ### HELPERS FUNCTIONS ###
-  defp create_platform do
+  defp create_platform(attrs \\ %{}) do
     {:ok, platform} =
-      @platform_valid_attrs
+      attrs
+      |> Enum.into(@platform_valid_attrs)
       |> Media.Context.insert_platform()
 
     platform =
@@ -923,4 +1147,8 @@ defmodule Media.MediasTest do
   end
 
   ### HELPERS FUNCTIONS ###
+
+  defp uuid do
+    UUID.uuid4(:hex)
+  end
 end

@@ -18,8 +18,8 @@ defmodule Media.MongoDB.Schema do
   end
   ```elixir
   """
-  @common_metadata ~w(platform_id url size type filename)a
-  @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
+  @common_file_metadata ~w(platform_id url size type filename s3_id)a
+  @file_metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
   use Ecto.Schema
   import Ecto.Changeset
   alias BSON.ObjectId
@@ -81,11 +81,30 @@ defmodule Media.MongoDB.Schema do
     |> validate_inclusion(:private_status, ["public", "private"])
     |> validate_inclusion(:type, ["image", "video", "document", "podcast"])
     |> validate_files(attrs |> Map.get(:files) || attrs |> Map.get("files"))
+    |> validate_contents_used(
+      attrs |> Map.get(:contents_used) || attrs |> Map.get("contents_used")
+    )
 
     # changeset
     # |> cast_embed(:files,
     #   with: {Schema, :files_changeset, [get_field(changeset, :type)]}
     # )
+  end
+
+  defp validate_contents_used(%Ecto.Changeset{valid?: false} = changeset, _content), do: changeset
+  defp validate_contents_used(%Ecto.Changeset{valid?: true} = changeset, nil), do: changeset
+
+  defp validate_contents_used(%Ecto.Changeset{valid?: true} = changeset, content)
+       when content == [],
+       do: changeset
+
+  defp validate_contents_used(%Ecto.Changeset{valid?: true} = changeset, content)
+       when is_list(content) do
+    if Enum.all?(content, &Helpers.valid_object_id?(&1)) do
+      changeset |> put_change(:contents_used, Enum.uniq(content))
+    else
+      changeset |> add_error(:contents_used, "Content can only be a list of valid IDs")
+    end
   end
 
   defp validate_files(%Ecto.Changeset{valid?: false} = changeset, _files), do: changeset
@@ -131,7 +150,7 @@ defmodule Media.MongoDB.Schema do
       file
       |> Morphix.atomorphify()
 
-    required_fields = @common_metadata ++ Map.get(@metadata_per_type, type, [])
+    required_fields = @common_file_metadata ++ Map.get(@file_metadata_per_type, type, [])
 
     provided_fields =
       file

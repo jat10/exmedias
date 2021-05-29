@@ -21,7 +21,7 @@ defmodule Media.Schema.File do
   end
   ```elixir
   """
-  @fields ~w(url size type filename duration platform_id)a
+  @fields ~w(url size type filename duration platform_id s3_id)a
   @videos_ext ["mp4"]
   use Ecto.Schema
   import Ecto.Changeset
@@ -29,13 +29,14 @@ defmodule Media.Schema.File do
   alias Media.Platforms.Platform
 
   # @derive {Jason.Encoder, only: @fields}
-  @primary_key false
+  # @primary_key false
   embedded_schema do
     field(:url, :string)
     field(:filename, :string)
     field(:type, :string)
     field(:size, :integer)
     field(:duration, :integer)
+    field(:s3_id, :string)
     belongs_to :platform, Platform, on_replace: :delete
   end
 
