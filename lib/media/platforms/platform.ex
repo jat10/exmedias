@@ -10,6 +10,8 @@ defmodule Media.Platforms.Platform do
     field :height, :integer
     field :name, :string
     field :width, :integer
+    field(:number_of_medias, :integer, virtual: true, default: 0)
+
     timestamps()
   end
 

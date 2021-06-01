@@ -5,6 +5,7 @@ defmodule Media.FiltersPostgreSQL do
   # alias Media.Helpers
   # alias Media.PostgreSQL
   @computed_filters ["number_of_contents"]
+  # @computed_filters []
   import Ecto.Query
 
   # def add_offset(query, offset) do
@@ -145,19 +146,80 @@ defmodule Media.FiltersPostgreSQL do
       %{"title" => value}, dynamic ->
         dynamic([p], ^dynamic and p.title == ^value)
 
-      %{"author" => value}, dynamic ->
-        dynamic([p], ^dynamic and p.author == ^value)
+      # %{"author" => value}, dynamic ->
+      #   dynamic([p], ^dynamic and p.author == ^value)
 
-      %{"private_status" => value}, dynamic ->
-        dynamic([p], ^dynamic and p.private_status == ^value)
+      # %{"private_status" => value}, dynamic ->
+      #   dynamic([p], ^dynamic and p.private_status == ^value)
 
-      %{"locked_status" => value}, dynamic ->
+      # %{"locked_status" => value}, dynamic ->
+      #   dynamic([p], ^dynamic and p.locked_status == ^value)
+
+      %{"number_of_medias" => value}, dynamic ->
         ## to do check if the dates need more processing
-        dynamic([p], ^dynamic and p.locked_status == ^value)
+        number_of_medias_op(value, dynamic, op)
 
       in_table, dynamic ->
         in_table(in_table, dynamic, op)
     end)
+  end
+
+  defp number_of_medias_op(value, dynamic, op) do
+    op = Map.get(op, "number_of_medias", %{})
+    operation = op |> Map.get("operation", ">=")
+
+    case operation do
+      "=" ->
+        dynamic(
+          [p, s],
+          ^dynamic and fragment("COALESCE(?, 0) = ?::bigint", s.number_of_medias, ^value)
+        )
+
+      ">" ->
+        dynamic(
+          [p, s],
+          ^dynamic and fragment("COALESCE(?, 0) > ?::bigint", s.number_of_medias, ^value)
+        )
+
+      val ->
+        number_of_medias_op_eq(value, dynamic, val)
+    end
+  end
+
+  defp number_of_medias_op_eq(value, dynamic, operation) do
+    case operation do
+      ">=" ->
+        dynamic(
+          [p, s],
+          ^dynamic and fragment("COALESCE(?, 0) >= ?::bigint", s.number_of_medias, ^value)
+        )
+
+      "<" ->
+        dynamic(
+          [p, s],
+          ^dynamic and fragment("COALESCE(?, 0) < ?::bigint", s.number_of_medias, ^value)
+        )
+
+      "<=" ->
+        dynamic(
+          [p, s],
+          ^dynamic and fragment("COALESCE(?, 0) <= ?::bigint", s.number_of_medias, ^value)
+        )
+
+      val ->
+        handle_rest_of_operations(value, dynamic, operation)
+    end
+  end
+
+  def handle_rest_of_operations(value, dynamic, op) when op in ["between", "<>"] do
+    {from, _} = Map.get(op, "from") |> Float.parse()
+    {to, _} = Map.get(op, "to") |> Float.parse()
+
+    dynamic(
+      [p, s],
+      ^dynamic and fragment("COALESCE(?, 0) > ?::bigint", s.number_of_medias, ^from) and
+        fragment("COALESCE(?, 0) < ?::bigint", s.number_of_medias, ^to)
+    )
   end
 
   defp in_table(in_table, dynamic, _op) do

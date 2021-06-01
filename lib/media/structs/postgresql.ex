@@ -106,6 +106,19 @@ defmodule Media.PostgreSQL do
       end
     end
 
+    def get_full_platform(id) do
+      full_platform_query()
+      |> where([m], m.id == ^id)
+      |> Helpers.repo().one()
+      |> case do
+        nil ->
+          nil
+
+        %{number_of_medias: _files, platform: _media} = args ->
+          format_platforms(args)
+      end
+    end
+
     def get_full_media(id) do
       full_media_query()
       |> where([m], m.id == ^id)
@@ -140,6 +153,14 @@ defmodule Media.PostgreSQL do
       end
     end
 
+    defp get_platform_by_id(id) do
+      Helpers.repo().get(Platform, id)
+      |> case do
+        nil -> {:error, :not_found, "Media"}
+        media -> {:ok, media}
+      end
+    end
+
     def full_media_query do
       from(m in MediaSchema)
       |> join(
@@ -161,10 +182,6 @@ defmodule Media.PostgreSQL do
       |> group_by([m], m.id)
     end
 
-    def media_and_platform(media_id) do
-      from(m in MediaSchema, where: m.id == ^media_id)
-    end
-
     def insert_platform(%{args: args}) do
       Platforms.create_platform(args)
       |> case do
@@ -173,33 +190,141 @@ defmodule Media.PostgreSQL do
       end
     end
 
-    def delete_platform(%{args: platform_id}) do
-      ## TO DO platform unused implementation
-      if platform_unused?(platform_id) do
-        from(p in Platform,
-          where: p.id == ^platform_id
-        )
-        |> Helpers.repo().delete_all()
-        |> case do
-          {1, nil} -> {:ok, "Platform with id #{platform_id} deleted successfully"}
-          {0, nil} -> {:error, "Platform does not exist"}
-        end
+    def get_platform(%{args: platform_id}) do
+      with true <- Helpers.valid_postgres_id?(platform_id),
+           nil <- get_full_platform(platform_id) do
+        {:error, :not_found, "Platform does not exist"}
       else
-        {:error, "Platform does not exist"}
+        false -> {:error, Helpers.id_error_message(platform_id)}
+        platform -> {:ok, platform}
       end
     end
 
-    def platform_unused?(id) do
-      from(m in MediaSchema,
-        select: m,
-        where:
-          fragment(
-            "exists (select * from jsonb_to_recordset(unnest(?)) AS specs(platform_id int) where specs.platform_id = ?)",
-            m.files,
-            ^id
-          )
+    def update_platform(%{args: %{id: id} = params}) do
+      case get_platform_by_id(id) do
+        {:ok, media} ->
+          media
+          |> Platform.changeset(params)
+          |> Helpers.repo().update()
+
+        {:error, :not_found, _} = res ->
+          res
+      end
+    end
+
+    def delete_platform(%{args: platform_id}) do
+      with true <- Helpers.valid_postgres_id?(platform_id),
+           false <- !platform_used?(platform_id) do
+        delete_platform_by_id(platform_id)
+      else
+        true ->
+          {:error, "The platform with ID #{platform_id} is used by medias, It cannot be deleted"}
+
+        false ->
+          {:error, Helpers.id_error_message(platform_id)}
+      end
+    end
+
+    def delete_platform_by_id(platform_id) do
+      from(p in Platform,
+        where: p.id == ^platform_id
       )
-      |> Helpers.repo().all()
+      |> Helpers.repo().delete_all()
+      |> case do
+        {1, nil} -> {:ok, "Platform with id #{platform_id} deleted successfully"}
+        {0, nil} -> {:error, :not_found, "Platform does not exist"}
+      end
+    end
+
+    def list_platforms(%{args: args}) do
+      case args |> Helpers.build_params() do
+        {:error, error} ->
+          error
+
+        {:ok, %{filter: filters, sort: sort, operation: operation}} ->
+          {offset, limit} =
+            Helpers.build_pagination(
+              Helpers.extract_param(args, :page),
+              Helpers.extract_param(args, :per_page)
+            )
+
+          # related_schema = Helpers.env(:content_schema) || Helpers.env(:content_table)
+
+          result =
+            full_platform_query()
+            |> FiltersPostgreSQL.init(
+              filters |> Cartesian.possible_combinations(),
+              operation
+            )
+            # |> group_by([m], m.id)
+            |> add_offset(offset)
+            |> add_limit(limit)
+            |> add_sort(sort)
+            |> Helpers.repo().all()
+
+          total = result |> Enum.at(0, %{}) |> Map.get(:total)
+
+          result =
+            result
+            |> Enum.map(fn %{total: _total, platform: _media, number_of_medias: _total_medias} =
+                             args ->
+              format_platforms(args)
+            end)
+
+          %{result: result, total: total || 0}
+      end
+    end
+
+    def full_platform_query do
+      sub_query =
+        from(m in MediaSchema)
+        |> join(
+          :inner_lateral,
+          [m],
+          f in fragment("JSON_ARRAY_ELEMENTS(ARRAY_TO_JSON(?))", m.files),
+          on: true
+        )
+        |> select([m, f], %{
+          platform_id: fragment("(? -> 'platform_id')::text::bigint", f),
+          number_of_medias: fragment("coalesce(COUNT(?), 0)", f)
+        })
+        |> group_by([_], fragment("platform_id"))
+
+      from(m in Platform)
+      |> join(
+        :left,
+        [p],
+        f in subquery(sub_query),
+        on: p.id == f.platform_id
+      )
+      |> select([p, f], %{
+        platform: p,
+        number_of_medias: fragment("coalesce(?, 0)", f.number_of_medias),
+        total: fragment("count(?) OVER()", p)
+      })
+    end
+
+    def format_platforms(%{platform: platform, number_of_medias: total_medias} = args) do
+      platform
+      |> Map.put(:number_of_medias, total_medias)
+      |> Map.delete(:total)
+    end
+
+    def platform_used?(id) do
+      res =
+        from(m in MediaSchema,
+          select: m,
+          where:
+            fragment(
+              "exists (select * from JSON_ARRAY_ELEMENTS(ARRAY_TO_JSON(?)) as a where (a -> 'platform_id')::text::bigint = ?)",
+              m.files,
+              ^id
+            )
+        )
+        |> Helpers.repo().all()
+
+      ## if there was no media using this platform the query will return an empty array
+      res == []
     end
 
     def add_limit(query, 0), do: query

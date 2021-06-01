@@ -39,7 +39,7 @@ defmodule Media.MongoDB.Schema do
     field(:seo_tag, :string)
     ## virtual as this will not be stored in the database but will be returned when querying
     ## so that we have a proper mapping with the schema
-    field(:number_of_contents, :integer, virtual: true)
+    field(:number_of_contents, :integer, virtual: true, default: 0)
 
     timestamps()
   end
@@ -201,7 +201,7 @@ defmodule Media.MongoDB.Schema do
   # defp mapify(res), do: res
 
   defp available_platforms_ids do
-    DB.list_platforms(%Media.MongoDB{})
-    |> Enum.map(&Map.get(&1, :id))
+    %{result: result} = DB.list_platforms(%Media.MongoDB{args: %{}})
+    result |> Enum.map(&Map.get(&1, :id))
   end
 end
