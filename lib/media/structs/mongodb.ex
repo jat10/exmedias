@@ -11,9 +11,62 @@ defmodule Media.MongoDB do
     alias Media.MongoDB.Schema, as: MediaSchema
     alias Media.Platforms.Platform
     ## TO DO to be altered in next issues
-    def list_platforms(_args) do
-      Mongo.find(Media.Helpers.repo(), "platform", %{})
-      |> Media.Helpers.format_result(schema_to_module("platform"))
+    def list_platforms(%MongoDB{args: args}) do
+      pagination_pipe =
+        Helpers.build_pagination(
+          Helpers.extract_param(args, :page),
+          Helpers.extract_param(args, :per_page)
+        )
+        |> case do
+          {0, 0} ->
+            []
+
+          {offset, limit} ->
+            [
+              %{"$skip" => offset},
+              %{"$limit" => limit}
+            ]
+        end
+
+      ## We build the filters and valdiate them
+      {sort_pipe, filters_pipe} =
+        with {:ok, %{filter: filters, sort: sort, operation: operations}} <-
+               args |> Helpers.build_params(),
+             sort <- handle_sort(sort),
+             {sort, []} <-
+               {sort,
+                FiltersMongoDB.init(
+                  filters
+                  |> Cartesian.possible_combinations(),
+                  operations
+                )} do
+          {[], sort}
+        else
+          {:error, error} ->
+            error
+
+          {sort, {initial_computation, computed_filters, normal_filters}} ->
+            ## this can be used later for further computations
+            ## so we can optimize our query (running the normal filters first for ex.)
+            # initial_computations ++
+            {sort,
+             initial_computation ++
+               format_fitlers(normal_filters) ++
+               format_fitlers(computed_filters)}
+        end
+
+      ## We always need to have the number of contents_used computed
+      ## disregarding the filters
+      query_collection(
+        @platform_collection,
+        filters_pipe,
+        join_pipe_platform(),
+        sort_pipe,
+        pagination_pipe
+      )
+
+      # Mongo.find(Media.Helpers.repo(), "platform", %{})
+      # |> Media.Helpers.format_result(schema_to_module("platform"))
     end
 
     @doc """
@@ -64,16 +117,25 @@ defmodule Media.MongoDB do
           {:error, error} ->
             error
 
-          {sort, {computed_filters, normal_filters}} ->
+          {sort, {initial_computation, computed_filters, normal_filters}} ->
             ## this can be used later for further computations
             ## so we can optimize our query (running the normal filters first for ex.)
             # initial_computations ++
             {sort,
-             format_fitlers(normal_filters) ++
+             initial_computation ++
+               format_fitlers(normal_filters) ++
                format_fitlers(computed_filters)}
         end
 
-      query_media(filters_pipe, sort_pipe, pagination_pipe)
+      ## We always need to have the number of contents_used computed
+      ## disregarding the filters
+      query_collection(
+        @media_collection,
+        number_of_contents() ++ filters_pipe,
+        join_pipe(),
+        sort_pipe,
+        pagination_pipe
+      )
     end
 
     # filters to pipeline
@@ -108,7 +170,7 @@ defmodule Media.MongoDB do
 
     ## Bwhen submitting the form this will be called inside the controller after the file management is done
     def update_media(%MongoDB{args: %{id: id} = args}) do
-      with %MediaSchema{} = media <- get(%MongoDB{args: id}, @media_collection),
+      with {:ok, %MediaSchema{} = media} <- get(%MongoDB{args: id}, @media_collection),
            data <- MediaSchema.changeset(media, args),
            {_data, true} <- {data, data.valid?} do
         update(data, id, @media_collection)
@@ -127,11 +189,11 @@ defmodule Media.MongoDB do
     def get_platform(args), do: get(args, @platform_collection)
     def insert_platform(args), do: insert(args, @platform_collection)
 
-    def update_platform(%MongoDB{args: %{id: id} = args} = platform) do
-      with %Platform{} = platform <- get(platform, @platform_collection),
+    def update_platform(%MongoDB{args: %{id: id} = args}) do
+      with {:ok, %Platform{} = platform} <- get(%MongoDB{args: id}, @platform_collection),
            data <- Platform.changeset(platform, args),
            {_data, true} <- {data, data.valid?} do
-        update(args, id, @platform_collection)
+        update(data, id, @platform_collection)
       else
         {:error, :not_found, _collection} ->
           {:error, %{error: "#{@platform_collection} does not exist"}}
@@ -143,7 +205,42 @@ defmodule Media.MongoDB do
       end
     end
 
-    def delete_platform(args), do: delete(args, @platform_collection)
+    def delete_platform(%MongoDB{args: id} = args) do
+      with true <- Helpers.valid_object_id?(id), false <- platform_used?(id) do
+        delete(args, @platform_collection)
+      else
+        {:error, :not_found, _message} = res ->
+          res
+
+        true ->
+          {:error, "This platform cannot be deleted as it used by medias."}
+
+        false ->
+          {:error, Helpers.id_error_message(id)}
+      end
+    end
+
+    def platform_used?(id) do
+      id = ObjectId.decode!(id)
+
+      pipeline = [%{"$match" => %{"_id" => id}}] ++ join_pipe_platform()
+
+      result =
+        Mongo.aggregate(Helpers.repo(), @platform_collection, pipeline)
+        |> Enum.to_list()
+        |> Enum.at(0)
+
+      case result do
+        nil ->
+          {:error, :not_found, "#{@platform_collection |> String.capitalize()} does not exist"}
+
+        %{"number_of_medias" => 0} ->
+          false
+
+        %{"number_of_medias" => _} ->
+          true
+      end
+    end
 
     def get_media(%MongoDB{args: id}) do
       with true <- Helpers.valid_object_id?(id), %{total: 0} <- get_full_media(id) do
@@ -163,7 +260,7 @@ defmodule Media.MongoDB do
           {:error, :not_found, collection |> String.capitalize()}
 
         item ->
-          Helpers.format_item(item, schema_to_module(collection), id)
+          {:ok, Helpers.format_item(item, schema_to_module(collection), id)}
       end
     end
 
@@ -174,73 +271,51 @@ defmodule Media.MongoDB do
         %{"$match" => %{"_id" => id}}
       ]
 
-      query_media(initial_pipeline)
+      query_collection(@media_collection, number_of_contents() ++ initial_pipeline, join_pipe())
     end
 
-    def query_media(filters_pipe, sort_pipe \\ [], pagintaion_pipe \\ []) do
-      add_number_contents = [
-        %{"$addFields" => %{"number_of_contents" => %{"$size" => "$contents_used"}}}
-      ]
+    ## additional pipies contain the join pipes
+    def query_collection(
+          collection,
+          filters_pipe,
+          additional_pipes \\ [],
+          sort_pipe \\ [],
+          pagintaion_pipe \\ []
+        ) do
+      ## I had to put the join pipes first as the other pipes might depend on its result in some cases
+      pipes =
+        additional_pipes ++
+          filters_pipe ++
+          pagintaion_pipe ++
+          sort_pipe
+
+      pipes =
+        if Enum.all?(pipes, &(&1 == [])),
+          do: [%{"$project" => %{"include_all" => 0}}],
+          else: pipes
 
       pipeline = [
         %{
           "$facet" => %{
-            "result" =>
-              add_number_contents ++
-                filters_pipe ++
-                pagintaion_pipe ++
-                sort_pipe ++
-                [
-                  %{
-                    "$lookup" => %{
-                      "from" => "platform",
-                      "localField" => "files.platform_id",
-                      "foreignField" => "_id",
-                      "as" => "platforms"
-                    }
-                  },
-                  %{
-                    "$addFields" => %{
-                      "files" => %{
-                        "$map" => %{
-                          "input" => "$files",
-                          "in" => %{
-                            "$mergeObjects" => [
-                              "$$this",
-                              %{
-                                "platform" => %{
-                                  "$arrayElemAt" => [
-                                    "$platforms",
-                                    %{
-                                      "$indexOfArray" => [
-                                        "$platforms._id",
-                                        "$$this.platform_id"
-                                      ]
-                                    }
-                                  ]
-                                }
-                              }
-                            ]
-                          }
-                        }
-                      }
-                    }
-                  }
-                ],
-            "total" => add_number_contents ++ filters_pipe ++ [%{"$count" => "count"}]
+            "result" => pipes,
+            "total" => additional_pipes ++ filters_pipe ++ [%{"$count" => "count"}]
           }
         }
       ]
 
       %{"result" => result, "total" => total} =
-        Mongo.aggregate(Helpers.repo(), "media", pipeline)
+        Mongo.aggregate(Helpers.repo(), collection, pipeline)
         |> Enum.to_list()
         |> Enum.at(0)
 
       # total =
 
       %{
-        result: Helpers.format_result(result, schema_to_module("media")),
+        result:
+          Helpers.format_result(
+            result,
+            schema_to_module(collection)
+          ),
         total: total |> Enum.at(0, %{}) |> Map.get("count", 0)
       }
     end
@@ -274,7 +349,7 @@ defmodule Media.MongoDB do
       with true <- data.valid?,
            {:ok, result} <-
              Mongo.insert_one(Helpers.repo(), collection, Helpers.get_changes(data)) do
-        {:ok, get(%MongoDB{args: ObjectId.encode!(result.inserted_id)}, collection)}
+        get(%MongoDB{args: ObjectId.encode!(result.inserted_id)}, collection)
       else
         {:error, %{write_errors: [%{"code" => 11_000}]}} ->
           {:error, "#{collection |> String.capitalize()} already exists"}
@@ -303,7 +378,7 @@ defmodule Media.MongoDB do
            ) do
         {:ok, _result} ->
           ## why accessing the databse again let's try return the result variable
-          {:ok, get(%MongoDB{args: id}, collection)}
+          get(%MongoDB{args: id}, collection)
 
         _err ->
           {:error, %{error: "Unknown DB Error"}}
@@ -317,12 +392,84 @@ defmodule Media.MongoDB do
           {:ok, "#{collection |> String.capitalize()} with id #{id} deleted successfully"}
 
         {:ok, %{deleted_count: 0}} ->
-          {:error, "#{collection |> String.capitalize()} does not exists"}
+          {:error, "#{collection |> String.capitalize()} does not exist"}
       end
     end
 
     defp schema_to_module(collection) do
       @schema_collection[collection]
+    end
+
+    defp number_of_contents do
+      [
+        %{
+          "$addFields" => %{"number_of_contents" => %{"$size" => "$contents_used"}}
+        }
+      ]
+    end
+
+    # defp number_of_medias do
+    #   [
+    #     %{
+    #       "$addFields" => %{"number_of_medias" => %{"$size" => "$medias"}}
+    #     }
+    #   ]
+    # end
+
+    defp join_pipe_platform do
+      [
+        %{
+          "$lookup" => %{
+            "from" => "media",
+            "localField" => "_id",
+            "foreignField" => "files.platform_id",
+            "as" => "medias"
+          }
+        },
+        %{
+          "$addFields" => %{"number_of_medias" => %{"$size" => "$medias"}}
+        }
+      ]
+    end
+
+    defp join_pipe do
+      [
+        %{
+          "$lookup" => %{
+            "from" => "platform",
+            "localField" => "files.platform_id",
+            "foreignField" => "_id",
+            "as" => "platforms"
+          }
+        },
+        %{
+          "$addFields" => %{
+            "files" => %{
+              "$map" => %{
+                "input" => "$files",
+                "in" => %{
+                  "$mergeObjects" => [
+                    "$$this",
+                    %{
+                      "platform" => %{
+                        "$arrayElemAt" => [
+                          "$platforms",
+                          %{
+                            "$indexOfArray" => [
+                              "$platforms._id",
+                              "$$this.platform_id"
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
     end
   end
 end

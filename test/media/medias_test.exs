@@ -1,6 +1,6 @@
 defmodule Media.MediasTest do
   use Media.DataCase
-  alias Media.{MongoDB, PostgreSQL}
+  alias Media.{MongoDB, PostgreSQL, TestHelpers}
   import Mock
 
   @update_attrs %{
@@ -69,7 +69,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -129,7 +129,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -167,7 +167,7 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -179,7 +179,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -239,7 +239,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -298,7 +298,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -357,7 +357,7 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -379,7 +379,7 @@ defmodule Media.MediasTest do
           duration: "asd",
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -401,7 +401,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -419,7 +419,7 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           duration: 240,
           size: 4_000_000,
-          s3_id: uuid(),
+          s3_id: TestHelpers.uuid(),
           platform_id: platform.id
         }
       ]
@@ -431,7 +431,7 @@ defmodule Media.MediasTest do
     test "update_media/2 with valid data updates the media" do
       platform = create_platform()
       another_platform = create_platform(%{name: "mobile"})
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -450,9 +450,9 @@ defmodule Media.MediasTest do
         |> Map.put(:number_of_contents, 0)
 
       platform_id = platform.id
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
       another_platform_id = another_platform.id
-      another_s3_id = uuid()
+      another_s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -510,7 +510,7 @@ defmodule Media.MediasTest do
 
     test "update_media/2 with invalid platform returns error" do
       platform = create_platform()
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -525,7 +525,7 @@ defmodule Media.MediasTest do
       ]
 
       media = media_fixture(%{files: files})
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -549,29 +549,11 @@ defmodule Media.MediasTest do
                  |> Map.put(:files, files)
                )
     end
-
-    # test "update_media/2 with invalid data returns error changeset" do
-    #   media = media_fixture()
-    #   assert {:error, %Ecto.Changeset{}} = Media.Context.update_media(media, @invalid_attrs)
-    #   assert media == Media.Context.get_media(media.id)
-    # end
-
-    # test "delete_platform/1 deletes the platform" do
-    #   platform = media_fixture()
-    #   assert {:ok, %Platform{}} = Platforms.delete_platform(platform)
-    #   assert_raise Ecto.NoResultsError, fn -> Platforms.get_platform!(platform.id) end
-    # end
-
-    # test "change_platform/1 returns a platform changeset" do
-    #   platform = media_fixture()
-    #   assert %Ecto.Changeset{} = Platforms.change_platform(platform)
-    # end
   end
 
   describe "Medias CRUD with MongoDB" do
     alias BSON.ObjectId
     alias Media.Helpers
-    alias Media.TestHelpers
 
     @platform_valid_attrs %{
       description: "some description",
@@ -632,7 +614,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -691,7 +673,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -729,7 +711,7 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -741,11 +723,11 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
-      media0 = media_fixture(%{files: files})
+      media_fixture(%{files: files})
 
       media1 =
         media_fixture(%{
@@ -799,7 +781,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -858,7 +840,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -911,7 +893,7 @@ defmodule Media.MediasTest do
           url: "http://url.com",
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -933,7 +915,7 @@ defmodule Media.MediasTest do
           duration: "asd",
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -955,7 +937,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -974,7 +956,7 @@ defmodule Media.MediasTest do
           duration: 240,
           size: 4_000_000,
           platform_id: platform.id,
-          s3_id: uuid()
+          s3_id: TestHelpers.uuid()
         }
       ]
 
@@ -985,7 +967,7 @@ defmodule Media.MediasTest do
     test "update_media/2 with valid data updates the media" do
       platform = create_platform()
       another_platform = create_platform(%{name: "mobile"})
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -1004,9 +986,9 @@ defmodule Media.MediasTest do
         |> Map.put(:number_of_contents, 0)
 
       platform_id = platform.id
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
       another_platform_id = another_platform.id
-      another_s3_id = uuid()
+      another_s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -1067,7 +1049,7 @@ defmodule Media.MediasTest do
 
     test "update_media/2 with invalid platform returns error" do
       platform = create_platform()
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -1082,7 +1064,7 @@ defmodule Media.MediasTest do
       ]
 
       media = media_fixture(%{files: files})
-      s3_id = uuid()
+      s3_id = TestHelpers.uuid()
 
       files = [
         %{
@@ -1103,23 +1085,6 @@ defmodule Media.MediasTest do
                  |> Map.put(:files, files)
                )
     end
-
-    # test "update_media/2 with invalid data returns error changeset" do
-    #   media = media_fixture()
-    #   assert {:error, %Ecto.Changeset{}} = Media.Context.update_media(media, @invalid_attrs)
-    #   assert media == Media.Context.get_media(media.id)
-    # end
-
-    # test "delete_platform/1 deletes the platform" do
-    #   platform = media_fixture()
-    #   assert {:ok, %Platform{}} = Platforms.delete_platform(platform)
-    #   assert_raise Ecto.NoResultsError, fn -> Platforms.get_platform!(platform.id) end
-    # end
-
-    # test "change_platform/1 returns a platform changeset" do
-    #   platform = media_fixture()
-    #   assert %Ecto.Changeset{} = Platforms.change_platform(platform)
-    # end
   end
 
   ### HELPERS FUNCTIONS ###
@@ -1147,8 +1112,4 @@ defmodule Media.MediasTest do
   end
 
   ### HELPERS FUNCTIONS ###
-
-  defp uuid do
-    UUID.uuid4(:hex)
-  end
 end

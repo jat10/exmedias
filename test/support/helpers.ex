@@ -6,4 +6,8 @@ defmodule Media.TestHelpers do
     Mongo.delete_many(:mongo, "platform", %{})
     :ok
   end
+
+  def uuid do
+    UUID.uuid4(:hex)
+  end
 end
