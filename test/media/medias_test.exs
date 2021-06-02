@@ -1,6 +1,7 @@
 defmodule Media.MediasTest do
   use Media.DataCase
-  alias Media.{MongoDB, PostgreSQL, TestHelpers}
+  alias Media.{MongoDB, PostgreSQL, S3Manager, TestHelpers}
+  alias Media.Test.Contents
   import Mock
 
   @update_attrs %{
@@ -52,7 +53,8 @@ defmodule Media.MediasTest do
 
     setup_with_mocks([
       {Helpers, [:passthrough],
-       db_struct: fn args -> struct(%PostgreSQL{}, %{args: args}) end, repo: fn -> Media.Repo end}
+       db_struct: fn args -> struct(%PostgreSQL{}, %{args: args}) end, repo: fn -> Media.Repo end},
+      {S3Manager, [:passthrough], delete_file: fn _args -> :ok end}
     ]) do
       :ok
     end
@@ -549,6 +551,62 @@ defmodule Media.MediasTest do
                  |> Map.put(:files, files)
                )
     end
+
+    test "delete_media/1 deletes the media" do
+      platform = create_platform()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id,
+          s3_id: TestHelpers.uuid()
+        }
+      ]
+
+      media = media_fixture(%{files: files})
+      assert {:ok, _message} = Media.Context.delete_media(media.id)
+      assert {:error, :not_found, _} = Media.Context.get_media(media.id)
+    end
+
+    test "delete_media/1 deletes unexsting media returns an error" do
+      # TestHelpers.set_repo(:mongo, @mongo_db_name)
+
+      assert {:error, :not_found, _} = Media.Context.delete_platform(0)
+    end
+
+    test "delete_media/1 deletes with invalid id returns an error" do
+      # TestHelpers.set_repo(:mongo, @mongo_db_name)
+
+      assert {:error, _message} = Media.Context.delete_platform("invalid id")
+    end
+
+    test "delete_media/1 deleting a used media returns an error" do
+      # TestHelpers.set_repo(:mongo, @mongo_db_name)
+
+      platform = create_platform()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id,
+          s3_id: TestHelpers.uuid()
+        }
+      ]
+
+      media = media_fixture(%{files: files})
+
+      Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media]})
+
+      assert {:error, _} = Media.Context.delete_media(media.id)
+    end
   end
 
   describe "Medias CRUD with MongoDB" do
@@ -594,7 +652,8 @@ defmodule Media.MediasTest do
        db_struct: fn args -> struct(%MongoDB{}, %{args: args}) end,
        repo: fn ->
          :mongo
-       end}
+       end},
+      {S3Manager, [:passthrough], delete_file: fn _args -> :ok end}
     ]) do
       ## to have the database clean for each test
       ## What the sandbox does for postgreSQL
@@ -1084,6 +1143,62 @@ defmodule Media.MediasTest do
                  |> Map.put(:id, media.id)
                  |> Map.put(:files, files)
                )
+    end
+
+    test "delete_media/1 deletes the media" do
+      platform = create_platform()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id,
+          s3_id: TestHelpers.uuid()
+        }
+      ]
+
+      media = media_fixture(%{files: files})
+      assert {:ok, _message} = Media.Context.delete_media(media.id)
+      assert {:error, :not_found, _} = Media.Context.get_media(media.id)
+    end
+
+    test "delete_media/1 deletes unexsting media returns an error" do
+      # TestHelpers.set_repo(:mongo, @mongo_db_name)
+
+      assert {:error, :not_found, _} = Media.Context.delete_platform("012345678901234567890123")
+    end
+
+    test "delete_media/1 deletes with invalid id returns an error" do
+      # TestHelpers.set_repo(:mongo, @mongo_db_name)
+
+      assert {:error, _message} = Media.Context.delete_platform("invalid id")
+    end
+
+    test "delete_media/1 deleting a used media returns an error" do
+      # TestHelpers.set_repo(:mongo, @mongo_db_name)
+      content = Contents.create_content(%{title: "content#{TestHelpers.uuid()}"})
+
+      platform = create_platform()
+
+      files = [
+        %{
+          type: "mp4",
+          filename: "video.mp4",
+          url: "http://url.com",
+          duration: 240,
+          size: 4_000_000,
+          platform_id: platform.id,
+          s3_id: TestHelpers.uuid()
+        }
+      ]
+
+      media =
+        media_fixture(%{files: files, contents_used: [content["_id"] |> ObjectId.encode!()]})
+
+      assert {:error, _} = Media.Context.delete_media(media.id)
     end
   end
 

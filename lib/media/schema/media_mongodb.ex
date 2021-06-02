@@ -76,8 +76,7 @@ defmodule Media.MongoDB.Schema do
     media
     |> cast(attrs, @fields)
     |> validate_inclusion(:locked_status, ["locked", "unlocked"])
-    |> validate_required(:author)
-    |> validate_required(:type)
+    |> validate_required([:author, :type])
     |> validate_inclusion(:private_status, ["public", "private"])
     |> validate_inclusion(:type, ["image", "video", "document", "podcast"])
     |> validate_files(attrs |> Map.get(:files) || attrs |> Map.get("files"))

@@ -91,17 +91,37 @@ defmodule Media.PostgreSQL do
     end
 
     def delete_media(%{args: media_id}) do
+      with {true, media_id} <-
+             Helpers.valid_postgres_id?(media_id),
+           {media, false} <- media_used?(media_id) do
+        Helpers.delete_s3_files(media)
+        delete_media_by_id(media_id)
+      else
+        {media, true} ->
+          {:error, "The platform with ID #{media_id} is used by medias, It cannot be deleted"}
+
+        {false, -1} ->
+          {:error, Helpers.id_error_message(media_id)}
+      end
+    end
+
+    defp delete_media_by_id(media_id) do
       from(p in MediaSchema,
         where: p.id == ^media_id
       )
       |> Helpers.repo().delete_all()
+      |> case do
+        {1, nil} -> {:ok, "Media with id #{media_id} deleted successfully"}
+        {0, nil} -> {:error, :not_found, "Media does not exist"}
+      end
     end
 
     def get_media(%{args: media_id}) do
-      with true <- Helpers.valid_postgres_id?(media_id), nil <- get_full_media(media_id) do
+      with {true, media_id} <- Helpers.valid_postgres_id?(media_id),
+           nil <- get_full_media(media_id) do
         {:error, :not_found, "Media does not exist"}
       else
-        false -> {:error, Helpers.id_error_message(media_id)}
+        {false, -1} -> {:error, Helpers.id_error_message(media_id)}
         media -> {:ok, media}
       end
     end
@@ -191,17 +211,24 @@ defmodule Media.PostgreSQL do
     end
 
     def get_platform(%{args: platform_id}) do
-      with true <- Helpers.valid_postgres_id?(platform_id),
+      with {true, platform_id} <- Helpers.valid_postgres_id?(platform_id),
            nil <- get_full_platform(platform_id) do
         {:error, :not_found, "Platform does not exist"}
       else
-        false -> {:error, Helpers.id_error_message(platform_id)}
+        {false, -1} -> {:error, Helpers.id_error_message(platform_id)}
         platform -> {:ok, platform}
       end
     end
 
-    def update_platform(%{args: %{id: id} = params}) do
-      case get_platform_by_id(id) do
+    def update_platform(%{args: %{id: _id} = params}), do: update_platform_common(%{args: params})
+
+    def update_platform(%{args: %{"id" => _id} = params}),
+      do: update_platform_common(%{args: params})
+
+    def update_platform(%{args: _params}), do: {:error, "Please provide an ID"}
+
+    def update_platform_common(%{args: params}) do
+      case get_platform_by_id(Helpers.extract_param(params, :id)) do
         {:ok, media} ->
           media
           |> Platform.changeset(params)
@@ -213,14 +240,14 @@ defmodule Media.PostgreSQL do
     end
 
     def delete_platform(%{args: platform_id}) do
-      with true <- Helpers.valid_postgres_id?(platform_id),
-           false <- !platform_used?(platform_id) do
+      with {true, platform_id} <- Helpers.valid_postgres_id?(platform_id),
+           false <- !platform_unused?(platform_id) do
         delete_platform_by_id(platform_id)
       else
         true ->
           {:error, "The platform with ID #{platform_id} is used by medias, It cannot be deleted"}
 
-        false ->
+        {false, -1} ->
           {:error, Helpers.id_error_message(platform_id)}
       end
     end
@@ -304,13 +331,25 @@ defmodule Media.PostgreSQL do
       })
     end
 
-    def format_platforms(%{platform: platform, number_of_medias: total_medias} = args) do
+    def format_platforms(%{platform: platform, number_of_medias: total_medias}) do
       platform
       |> Map.put(:number_of_medias, total_medias)
       |> Map.delete(:total)
     end
 
-    def platform_used?(id) do
+    def media_used?(id) do
+      exists? = from(m in "medias_contents", where: m.media_id == ^id) |> Helpers.repo().exists?()
+
+      case get_media(%{args: id}) do
+        {:ok, media} ->
+          {media, exists?}
+
+        {:error, :not_found, _} = res ->
+          res
+      end
+    end
+
+    def platform_unused?(id) do
       res =
         from(m in MediaSchema,
           select: m,

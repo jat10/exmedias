@@ -3,7 +3,7 @@ defmodule Media.Helpers do
   alias BSON.ObjectId
   alias Ecto.Changeset
 
-  alias Media.{MongoDB, PostgreSQL}
+  alias Media.{MongoDB, PostgreSQL, S3Manager}
   @media_collection "media"
   @platform_collection "platform"
   # Returns the router helper module from the configs. Raises if the router isn't specified.
@@ -395,10 +395,24 @@ defmodule Media.Helpers do
 
   def valid_object_id?(_id), do: false
 
-  def valid_postgres_id?(id) when is_integer(id), do: true
-  def valid_postgres_id?(id) when is_binary(id), do: binary_is_integer?(Integer.parse(id))
-  def valid_postgres_id?(_id), do: false
+  def valid_postgres_id?(id) when is_integer(id), do: {true, id}
+
+  def valid_postgres_id?(id) when is_binary(id) do
+    parsed = Integer.parse(id)
+    integer? = binary_is_integer?(parsed)
+    id = if integer?, do: parsed |> elem(0), else: -1
+    {integer?, id}
+  end
+
+  def valid_postgres_id?(_id), do: {false, -1}
 
   def id_error_message(id),
-    do: "The id provided: #{inspect(id)} is not valid. Please provide a valid object ID."
+    do: "The id provided: #{inspect(id)} is not valid. Please provide a valid ID."
+
+  def delete_s3_files(files) when is_list(files) do
+    files
+    |> Enum.each(&S3Manager.delete_file(&1 |> Map.get(:filename)))
+  end
+
+  def delete_s3_files(_files), do: :ok
 end
