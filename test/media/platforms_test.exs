@@ -49,7 +49,7 @@ defmodule Media.PlatformsTest do
 
     test "list_platforms/0 returns all platforms (not paginated)" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform = platform_fixture()
 
@@ -75,7 +75,7 @@ defmodule Media.PlatformsTest do
     end
 
     test "list_platforms/0 returns all platforms (paginated)" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform0 = platform_fixture()
       platform1 = platform_fixture(%{name: TestHelpers.uuid()})
@@ -196,7 +196,7 @@ defmodule Media.PlatformsTest do
 
     test "get_platform/1 returns the platform with given id" do
       # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform = platform_fixture()
 
@@ -204,7 +204,7 @@ defmodule Media.PlatformsTest do
     end
 
     test "get_platform/1 with invalid ID" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       assert {:error, :not_found, _} = Media.Context.get_media(0)
       assert {:error, _errormessage} = Media.Context.get_media("asd")
@@ -215,7 +215,7 @@ defmodule Media.PlatformsTest do
     #     assert Platforms.get_platform!(platform.id) == platform
     #   end
     test "create_platform/1 with valid data creates a platform" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
       assert {:ok, %Platform{} = platform} = Media.Context.insert_platform(@valid_attrs)
       assert platform.description == "some description"
       assert platform.height == 42
@@ -224,12 +224,12 @@ defmodule Media.PlatformsTest do
     end
 
     test "create_platform/1 with invalid data returns error changeset" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
       assert {:error, %Ecto.Changeset{}} = Platforms.create_platform(@invalid_attrs)
     end
 
     test "update_platform/2 with valid data updates the platform" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform = platform_fixture()
 
@@ -243,7 +243,7 @@ defmodule Media.PlatformsTest do
     end
 
     test "update_platform/2 with invalid data returns error changeset" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform = platform_fixture()
 
@@ -257,7 +257,7 @@ defmodule Media.PlatformsTest do
     end
 
     test "delete_platform/1 deletes the platform" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform = platform_fixture()
       assert {:ok, _message} = Media.Context.delete_platform(platform.id)
@@ -265,20 +265,20 @@ defmodule Media.PlatformsTest do
     end
 
     test "delete_platform/1 deletes unexsting platform returns an error" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       assert {:error, :not_found, _} = Media.Context.delete_platform(0)
     end
 
     test "delete_platform/1 deletes with invalid id returns an error" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       assert {:error, Helpers.id_error_message("invalid id")} ==
                Media.Context.delete_platform("invalid id")
     end
 
     test "delete_platform/1 deleting a used platform returns an error" do
-      set_repo(Media.Repo, "postgreSQL")
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       platform = platform_fixture()
 
@@ -329,7 +329,7 @@ defmodule Media.PlatformsTest do
       [:passthrough],
       repo: fn -> :mongo end
     ) do
-      set_repo(:mongo, @mongo_db_name)
+      TestHelpers.set_repo(:mongo, @mongo_db_name)
       assert {:ok, %Platform{} = platform} = Media.Context.insert_platform(@valid_attrs)
       assert platform.description == "some description"
       assert platform.height == 42
@@ -345,7 +345,7 @@ defmodule Media.PlatformsTest do
   end
 
   test "list_platforms/0 returns all platforms (not paginated)" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
     platform = platform_fixture()
@@ -372,7 +372,7 @@ defmodule Media.PlatformsTest do
   end
 
   test "list_platforms/0 returns all platforms (paginated)" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     platform0 = platform_fixture()
     platform1 = platform_fixture(%{name: TestHelpers.uuid()})
@@ -403,7 +403,7 @@ defmodule Media.PlatformsTest do
 
   test "list_platforms/0 returns all platforms (filtered)" do
     # with_mock Helpers, [:passthrough], repo: fn -> Media.Repo end do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     name = TestHelpers.uuid()
     platform = platform_fixture(%{name: name})
@@ -494,7 +494,7 @@ defmodule Media.PlatformsTest do
   end
 
   test "get_platform/1 returns the platform with given id" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     platform = platform_fixture()
 
@@ -502,20 +502,20 @@ defmodule Media.PlatformsTest do
   end
 
   test "get_platform/1 with invalid ID" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     assert {:error, :not_found, _} = Media.Context.get_media("012345678901234567890123")
     assert {:error, _errormessage} = Media.Context.get_media("asd")
   end
 
   test "create_platform/1 with invalid data returns error changeset" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     assert {:error, %Ecto.Changeset{}} = Media.Context.insert_platform(@invalid_attrs)
   end
 
   test "update_platform/2 with valid data updates the platform" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     platform = platform_fixture(%{name: "platform-#{TestHelpers.uuid()}"})
 
@@ -529,7 +529,7 @@ defmodule Media.PlatformsTest do
   end
 
   test "update_platform/2 with invalid data returns error changeset" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     platform = platform_fixture(%{name: "platform-#{TestHelpers.uuid()}"})
 
@@ -558,7 +558,7 @@ defmodule Media.PlatformsTest do
   #   end
 
   test "delete_platform/1 deletes the platform" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     platform = platform_fixture()
     assert {:ok, _message} = Media.Context.delete_platform(platform.id)
@@ -566,19 +566,19 @@ defmodule Media.PlatformsTest do
   end
 
   test "delete_platform/1 deletes unexsting platform returns an error" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     assert {:error, :not_found, _} = Media.Context.delete_platform("012345678901234567890123")
   end
 
   test "delete_platform/1 deletes with invalid id returns an error" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     assert {:error, _message} = Media.Context.delete_platform("invalid id")
   end
 
   test "delete_platform/1 deleting a used platform returns an error" do
-    set_repo(:mongo, @mongo_db_name)
+    TestHelpers.set_repo(:mongo, @mongo_db_name)
 
     platform = platform_fixture()
 
@@ -604,10 +604,6 @@ defmodule Media.PlatformsTest do
   #     assert %Ecto.Changeset{} = Platforms.change_platform(platform)
   #   end
   # end
-  defp set_repo(repo, db) do
-    Application.put_env(:media, :repo, repo)
-    Application.put_env(:media, :active_database, db)
-  end
 
   defp media_fixture(attrs \\ %{}) do
     {:ok, media} =

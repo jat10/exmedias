@@ -22,6 +22,28 @@ defmodule Media.FiltersMongoDB do
   #     query
   #   end
   # end
+  def build_sort(%{"id" => value}) do
+    [%{"$sort" => %{"_id" => convert_sort(value)}}]
+  end
+
+  def build_sort(sort) when is_map(sort) do
+    sorted_values =
+      sort
+      |> Enum.reduce(%{}, fn {key, value}, acc ->
+        acc |> Map.merge(Map.put(%{}, key, convert_sort(value)))
+      end)
+
+    %{"$sort" => sorted_values}
+  end
+
+  def build_sort(nil), do: []
+
+  def convert_sort(value) when is_binary(value) do
+    case String.downcase(value) do
+      "desc" -> -1
+      "asc" -> 1
+    end
+  end
 
   def add_sort(query, nil), do: query
   def add_sort(query, sort) when sort == %{}, do: query

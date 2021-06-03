@@ -5,11 +5,20 @@ defmodule Media.Platforms.Platform do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @derive {Jason.Encoder,
+           only: [
+             :name,
+             :height,
+             :width,
+             :description,
+             :number_of_medias,
+             :id
+           ]}
   schema "platform" do
-    field :description, :string
-    field :height, :integer
-    field :name, :string
-    field :width, :integer
+    field(:description, :string)
+    field(:height, :integer)
+    field(:name, :string)
+    field(:width, :integer)
     field(:number_of_medias, :integer, virtual: true, default: 0)
 
     timestamps()

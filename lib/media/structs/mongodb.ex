@@ -32,7 +32,7 @@ defmodule Media.MongoDB do
       {sort_pipe, filters_pipe} =
         with {:ok, %{filter: filters, sort: sort, operation: operations}} <-
                args |> Helpers.build_params(),
-             sort <- handle_sort(sort),
+             sort <- FiltersMongoDB.build_sort(sort),
              {sort, []} <-
                {sort,
                 FiltersMongoDB.init(
@@ -40,12 +40,12 @@ defmodule Media.MongoDB do
                   |> Cartesian.possible_combinations(),
                   operations
                 )} do
-          {[], sort}
+          {sort, []}
         else
           {:error, error} ->
             error
 
-          {sort, {initial_computation, computed_filters, normal_filters}} ->
+          {sort, {initial_computation, computed_filters, normal_filters}} = res ->
             ## this can be used later for further computations
             ## so we can optimize our query (running the normal filters first for ex.)
             # initial_computations ++
@@ -104,7 +104,7 @@ defmodule Media.MongoDB do
       {sort_pipe, filters_pipe} =
         with {:ok, %{filter: filters, sort: sort, operation: operations}} <-
                args |> Helpers.build_params(),
-             sort <- handle_sort(sort),
+             sort <- FiltersMongoDB.build_sort(sort),
              {sort, []} <-
                {sort,
                 FiltersMongoDB.init(
@@ -143,19 +143,6 @@ defmodule Media.MongoDB do
       if filters == [], do: [], else: [%{"$match" => %{"$and" => filters}}]
     end
 
-    defp handle_sort(sort) when is_map(sort) do
-      sort
-      |> Map.values()
-      |> List.first()
-      |> String.downcase()
-      |> case do
-        "desc" -> 0
-        "asc" -> 1
-      end
-    end
-
-    defp handle_sort(nil), do: []
-
     # def get_media(%MongoDB{args: id}) do
     #   case get_full_media(id) do
     #     [] ->
@@ -185,11 +172,44 @@ defmodule Media.MongoDB do
       end
     end
 
-    def delete_media(args), do: delete(args, @media_collection)
+    def delete_media(%MongoDB{args: id} = args) do
+      with true <- Helpers.valid_object_id?(id), {media, false} <- media_used?(id) do
+        Helpers.delete_s3_files(media.files)
+        delete(args, @media_collection)
+      else
+        {:error, :not_found, _message} = res ->
+          res
+
+        {media, true} ->
+          {:error, "This Media cannot be deleted as it used by contents."}
+
+        false ->
+          {:error, Helpers.id_error_message(id)}
+      end
+    end
+
+    def media_used?(id) do
+      case get(%MongoDB{args: id}, @media_collection) do
+        {:ok, media} ->
+          {media, media.contents_used |> Enum.count() > 0}
+
+        {:error, :not_found, _} = res ->
+          res
+      end
+    end
+
     def get_platform(args), do: get(args, @platform_collection)
     def insert_platform(args), do: insert(args, @platform_collection)
 
-    def update_platform(%MongoDB{args: %{id: id} = args}) do
+    def update_platform(%MongoDB{args: %{"id" => _id} = args}),
+      do: update_platform_common(args)
+
+    def update_platform(%MongoDB{args: %{id: _id} = args}),
+      do: update_platform_common(args)
+
+    def update_platform_common(args) do
+      id = Helpers.extract_param(args, :id)
+
       with {:ok, %Platform{} = platform} <- get(%MongoDB{args: id}, @platform_collection),
            data <- Platform.changeset(platform, args),
            {_data, true} <- {data, data.valid?} do
@@ -283,6 +303,10 @@ defmodule Media.MongoDB do
           pagintaion_pipe \\ []
         ) do
       ## I had to put the join pipes first as the other pipes might depend on its result in some cases
+      filters_pipe
+      additional_pipes
+      sort_pipe
+
       pipes =
         additional_pipes ++
           filters_pipe ++

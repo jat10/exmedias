@@ -10,4 +10,9 @@ defmodule Media.TestHelpers do
   def uuid do
     UUID.uuid4(:hex)
   end
+
+  def set_repo(repo, db) do
+    Application.put_env(:media, :repo, repo)
+    Application.put_env(:media, :active_database, db)
+  end
 end
