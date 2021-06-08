@@ -34,8 +34,8 @@ test:
     - workerbuild
   coverage: /\[TOTAL\]\s+(\d+\.\d+)%/
   script:
-    - apk ffmpeg
-    - apk imagemagick
+    - apk add ffmpeg
+    - apk add imagemagick
     - mix deps.get
     - mix coveralls
 
