@@ -1292,7 +1292,6 @@
 #     {:ok, media} =
 #       attrs
 #       |> Enum.into(@valid_attrs)
-#       |> IO.inspect(label: "attrs")
 #       |> Media.Context.insert_media()
 
 #     media

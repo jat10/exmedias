@@ -348,7 +348,7 @@
 #     #     assert Platforms.get_platform!(platform.id) == platform
 #     #   end
 #     # setup _context do
-#     #   TestHelpers.clean_mongodb() |> IO.inspect(label: "CLEANING")
+#     #   TestHelpers.clean_mongodb()
 #     # end
 
 #     test_with_mock(

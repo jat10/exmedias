@@ -41,7 +41,6 @@ defmodule MediaWeb.PageController do
     # |> ExAws.S3.Upload.stream_file()
     # |> ExAws.S3.upload(s3_bucket, s3_filename, timeout: 600_000)
     # |> ExAws.request!()
-    # |> IO.inspect(label: "RESULT")
 
     render(conn |> put_flash(:success, "File uploaded successfully!"), "app.html")
     # put_flash(:success, "File uploaded successfully!")

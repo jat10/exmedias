@@ -760,19 +760,27 @@ defmodule MediaWeb.MediaControllerTest do
     file =
       case attrs["type"] do
         "image" ->
-          %Plug.Upload{
-            path: "test/fixtures/phoenix.png",
-            filename: "phoenix.png",
-            content_type: "image/png"
-          }
+          [
+            %{
+              "file" => %Plug.Upload{
+                path: "test/fixtures/phoenix.png",
+                filename: "phoenix.png",
+                content_type: "image/png"
+              },
+              "platform_id" => platform.id
+            }
+          ]
 
         "video" ->
-          %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"}
+          [
+            %{
+              "file" => %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"},
+              "platform_id" => platform.id
+            }
+          ]
 
         _ ->
-          nil
+          []
       end
-
-    [%{"file" => file, "platform_id" => platform.id}]
   end
 end

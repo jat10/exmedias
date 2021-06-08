@@ -433,18 +433,18 @@ defmodule Media.Helpers do
   ## all files will be replaced
   ## deleting those that are not and uploading new ones.
   def update_files(%Ecto.Changeset{valid?: false} = changeset, attrs),
-    do: {changeset, attrs |> Map.delete(:files) |> Map.delete("files")}
+    do: {changeset, attrs |> Map.delete(:files)}
 
-  def update_files(changeset, attrs) do
+  def update_files(%Ecto.Changeset{valid?: true} = changeset, attrs) do
     new_files = attrs |> extract_param(:files, %{})
 
-    old_files = changeset |> get_field(:files) || changeset |> get_field("files") || []
+    old_files = changeset |> get_field(:files) || []
 
     privacy =
-      changeset |> get_field(:private_status) || changeset |> get_field("private_status") ||
+      changeset |> get_field(:private_status) ||
         "private"
 
-    type = changeset |> get_field(:type) || changeset |> get_field("type")
+    type = changeset |> get_field(:type)
 
     old_ids = old_files |> Enum.map(&Map.get(&1, :file_id))
 
@@ -466,7 +466,6 @@ defmodule Media.Helpers do
 
             new_file
             |> Map.delete(:file)
-            |> Map.delete("file")
             |> Map.merge(%{
               filename: filename,
               thumbnail_filename: thumbnail_filename,
@@ -588,8 +587,8 @@ defmodule Media.Helpers do
   end
 
   def handle_youtube_video(file) do
-    video_file = extract_param(file, "file")
-    url = extract_param(video_file, "url")
+    video_file = extract_param(file, :file)
+    url = extract_param(video_file, :url)
 
     with {:ok, %{"id" => video_id}} <- get_youtube_id(url),
          {:ok, %{"items" => items}} <- __MODULE__.youtube_video_details(url) do
@@ -612,7 +611,6 @@ defmodule Media.Helpers do
         thumbnail_url: thumbnail_url
       })
       |> Map.delete(:file)
-      |> Map.delete("file")
     else
       {:error, :not_youtube_url} ->
         {:error, "This video is not a youtube video"}

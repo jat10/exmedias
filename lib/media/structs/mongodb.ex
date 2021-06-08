@@ -12,6 +12,8 @@ defmodule Media.MongoDB do
     alias Media.Platforms.Platform
     ## TO DO to be altered in next issues
     def list_platforms(%MongoDB{args: args}) do
+      args = args |> Helpers.atomize_keys()
+
       pagination_pipe =
         Helpers.build_pagination(
           Helpers.extract_param(args, :page),
@@ -84,6 +86,8 @@ defmodule Media.MongoDB do
 
     """
     def list_medias(%MongoDB{args: args}) do
+      args = args |> Helpers.atomize_keys()
+
       pagination_pipe =
         Helpers.build_pagination(
           Helpers.extract_param(args, :page),
@@ -143,19 +147,9 @@ defmodule Media.MongoDB do
       if filters == [], do: [], else: [%{"$match" => %{"$and" => filters}}]
     end
 
-    # def get_media(%MongoDB{args: id}) do
-    #   case get_full_media(id) do
-    #     [] ->
-    #       {:error, :not_found, "media"}
-
-    #     item ->
-    #       item |> Map.get(:result) |> Enum.at(0)
-    #   end
-    # end
-
     def insert_media(args), do: insert(args, @media_collection)
 
-    ## Bwhen submitting the form this will be called inside the controller after the file management is done
+    ## When submitting the form this will be called inside the controller after the file management is done
     def update_media(%MongoDB{args: %{id: id} = args}) do
       with {:ok, %MediaSchema{} = media} <- get(%MongoDB{args: id}, @media_collection),
            data <- MediaSchema.changeset(media, args),
@@ -166,8 +160,6 @@ defmodule Media.MongoDB do
           {:error, %{error: "#{@media_collection} does not exist"}}
 
         {data, false} ->
-          ## TO DO we should cover this to return a proper error in case the changeset
-          ## is not valid
           {:error, data}
       end
     end
@@ -386,7 +378,6 @@ defmodule Media.MongoDB do
       end
     end
 
-    ## TO DO work this out to be generic
     def update(data, id, collection) do
       case Mongo.update_one(
              Helpers.repo(),
@@ -401,7 +392,6 @@ defmodule Media.MongoDB do
              }
            ) do
         {:ok, _result} ->
-          ## why accessing the databse again let's try return the result variable
           get(%MongoDB{args: id}, collection)
 
         _err ->
@@ -431,14 +421,6 @@ defmodule Media.MongoDB do
         }
       ]
     end
-
-    # defp number_of_medias do
-    #   [
-    #     %{
-    #       "$addFields" => %{"number_of_medias" => %{"$size" => "$medias"}}
-    #     }
-    #   ]
-    # end
 
     defp join_pipe_platform do
       [
