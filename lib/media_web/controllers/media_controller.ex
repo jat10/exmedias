@@ -17,7 +17,7 @@ defmodule MediaWeb.MediaController do
   end
 
   def insert_media(conn, args) do
-    case Context.insert_media(args) do
+    case Context.insert_media(args |> Helpers.atomize_keys()) do
       {:ok, media} ->
         render(conn, "media.json", media: media)
 
