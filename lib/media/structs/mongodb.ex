@@ -45,7 +45,7 @@ defmodule Media.MongoDB do
           {:error, error} ->
             error
 
-          {sort, {initial_computation, computed_filters, normal_filters}} = res ->
+          {sort, {initial_computation, computed_filters, normal_filters}} ->
             ## this can be used later for further computations
             ## so we can optimize our query (running the normal filters first for ex.)
             # initial_computations ++
@@ -112,7 +112,7 @@ defmodule Media.MongoDB do
                   |> Cartesian.possible_combinations(),
                   operations
                 )} do
-          {[], sort}
+          {sort, []}
         else
           {:error, error} ->
             error
@@ -180,7 +180,7 @@ defmodule Media.MongoDB do
         {:error, :not_found, _message} = res ->
           res
 
-        {media, true} ->
+        {_media, true} ->
           {:error, "This Media cannot be deleted as it used by contents."}
 
         false ->
@@ -267,7 +267,7 @@ defmodule Media.MongoDB do
         {:error, :not_found, @media_collection |> String.capitalize()}
       else
         %{result: result} ->
-          {:ok, result |> List.first()}
+          {:ok, result |> List.first() |> Helpers.check_files_privacy()}
 
         false ->
           {:error, Helpers.id_error_message(id)}
@@ -303,10 +303,6 @@ defmodule Media.MongoDB do
           pagintaion_pipe \\ []
         ) do
       ## I had to put the join pipes first as the other pipes might depend on its result in some cases
-      filters_pipe
-      additional_pipes
-      sort_pipe
-
       pipes =
         additional_pipes ++
           filters_pipe ++
@@ -368,11 +364,15 @@ defmodule Media.MongoDB do
     def insert(%MongoDB{args: args}, collection) do
       module = schema_to_module(collection)
       # data = Media.changeset(%Media{}, args) equivalent to the line below
-      data = apply(module, :changeset, [module |> struct(%{}), args])
+      data = apply(module, :changeset, [module |> struct(%{}), args |> Helpers.atomize_keys()])
 
       with true <- data.valid?,
            {:ok, result} <-
-             Mongo.insert_one(Helpers.repo(), collection, Helpers.get_changes(data)) do
+             Mongo.insert_one(
+               Helpers.repo(),
+               collection,
+               Helpers.get_changes(data)
+             ) do
         get(%MongoDB{args: ObjectId.encode!(result.inserted_id)}, collection)
       else
         {:error, %{write_errors: [%{"code" => 11_000}]}} ->

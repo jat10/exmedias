@@ -18,14 +18,18 @@ defmodule Media.MongoDB.Schema do
   end
   ```elixir
   """
-  @common_file_metadata ~w(platform_id url size type filename s3_id)a
-  @file_metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
+  @common_file_metadata ~w(url type platform_id file_id thumbnail_url)a
+  @file_metadata_per_type %{
+    "video" => ~w(duration)a,
+    "podcast" => ~w(duration filename)a,
+    "image" => ~w(thumbnail_filename size filename)a
+  }
   use Ecto.Schema
   import Ecto.Changeset
   alias BSON.ObjectId
   alias Media.Helpers
   @fields ~w(title author seo_tag contents_used tags type locked_status private_status files)a
-  # @derive {Jason.Encoder, only: @fields}
+  @derive {Jason.Encoder, only: @fields}
   schema "media" do
     field(:tags, {:array, :string})
     field(:title, :string)
@@ -73,16 +77,21 @@ defmodule Media.MongoDB.Schema do
 
   """
   def changeset(media, attrs) do
-    media
-    |> cast(attrs, @fields)
-    |> validate_inclusion(:locked_status, ["locked", "unlocked"])
-    |> validate_required([:author, :type])
-    |> validate_inclusion(:private_status, ["public", "private"])
-    |> validate_inclusion(:type, ["image", "video", "document", "podcast"])
+    {changeset, attrs} =
+      media
+      |> cast(attrs, @fields -- [:files])
+      |> validate_inclusion(:locked_status, ["locked", "unlocked"])
+      |> validate_required([:author, :type])
+      |> validate_inclusion(:private_status, ["public", "private"])
+      |> validate_inclusion(:type, ["image", "video", "document", "podcast"])
+      |> validate_contents_used(
+        attrs |> Map.get(:contents_used) || attrs |> Map.get("contents_used")
+      )
+      |> Helpers.update_files(attrs)
+
+    changeset
+    |> cast(attrs, [:files])
     |> validate_files(attrs |> Map.get(:files) || attrs |> Map.get("files"))
-    |> validate_contents_used(
-      attrs |> Map.get(:contents_used) || attrs |> Map.get("contents_used")
-    )
 
     # changeset
     # |> cast_embed(:files,
@@ -153,6 +162,8 @@ defmodule Media.MongoDB.Schema do
 
     provided_fields =
       file
+      |> Map.delete(:file)
+      |> Map.delete("file")
       |> Map.keys()
 
     with {:keys, true} <-

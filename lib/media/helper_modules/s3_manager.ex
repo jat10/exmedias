@@ -13,7 +13,7 @@ defmodule Media.S3Manager do
       # |> File.stream!()
       |> Upload.stream_file()
       |> S3.upload(
-        Helpers.env(:aws_bucket_name),
+        Helpers.aws_bucket_name(),
         "#{destination}/#{filename}#{
           filename
           |> Path.extname()
@@ -44,14 +44,14 @@ defmodule Media.S3Manager do
   end
 
   def delete_file(path) do
-    Helpers.env(:aws_bucket_name)
+    Helpers.aws_bucket_name()
     |> S3.delete_object(path)
     |> ExAws.request!()
   end
 
   def get_file(filename) do
     aws =
-      Helpers.env(:aws_bucket_name)
+      Helpers.aws_bucket_name()
       |> S3.list_objects(prefix: filename)
       |> ExAws.request!()
 
@@ -74,7 +74,7 @@ defmodule Media.S3Manager do
 
   def fetch_file(contents) do
     file = hd(contents)
-    bucket = Helpers.env(:aws_bucket_name)
+    bucket = Helpers.aws_bucket_name()
     path = "https://s3.amazonaws.com/#{bucket}/#{file.key}"
     {:ok, %{id: file.e_tag, filename: file.key, path: path, bucket: bucket}}
   end
@@ -103,7 +103,7 @@ defmodule Media.S3Manager do
   end
 
   def upload_file_base64(filename, image_base64, destination) do
-    image_bucket = Helpers.env(:aws_bucket_name)
+    image_bucket = Helpers.aws_bucket_name()
     image_binary = Base.decode64!(image_base64)
 
     image_bucket
@@ -159,18 +159,21 @@ defmodule Media.S3Manager do
     change_privacy(object_key, :private)
   end
 
+  def change_object_privacy(object_key, _) do
+    change_privacy(object_key, :private)
+  end
+
   defp change_privacy(object_key, acl_permission) do
     S3.put_object_acl(
       Application.get_env(:media, :aws_bucket_name),
       object_key,
       [{:acl, acl_permission}]
     )
-    |> ExAws.request!()
+    |> ExAws.request()
   end
 
   def read_private_object(credentials, destination) do
-    url = "https://eweevtestbucketprivate.s3.amazonaws.com/#{destination}?Action=GetObject"
-    # url = "https://s3.amazonaws.com/Action=GetObject"
+    url = "https://#{Helpers.aws_bucket_name()}.s3.amazonaws.com/#{destination}?Action=GetObject"
     headers = %{"X-Amz-Secure-Token" => credentials.session_token}
 
     {:ok, %{} = sig_data, _} =
@@ -184,11 +187,14 @@ defmodule Media.S3Manager do
 
     ## TO DO we don't need to actually get the object
     ## we only need to send the url headers and params to the front
-    HTTPoison.get(
-      url,
+    # HTTPoison.get(
+    #   url,
+    headers =
       Map.merge(headers, sig_data)
       |> Map.delete("X-Amz-SignedHeaders")
       |> Map.delete("X-Amz-Algorithm")
-    )
+
+    # )
+    %{url: url, headers: headers}
   end
 end

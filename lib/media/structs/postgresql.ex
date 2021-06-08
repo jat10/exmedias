@@ -94,10 +94,13 @@ defmodule Media.PostgreSQL do
       with {true, media_id} <-
              Helpers.valid_postgres_id?(media_id),
            {media, false} <- media_used?(media_id) do
-        Helpers.delete_s3_files(media)
+        Helpers.delete_s3_files(media.files)
         delete_media_by_id(media_id)
       else
-        {media, true} ->
+        {:error, :not_found, "Media does not exist"} = res ->
+          res
+
+        {_media, true} ->
           {:error, "The platform with ID #{media_id} is used by medias, It cannot be deleted"}
 
         {false, -1} ->
@@ -122,7 +125,7 @@ defmodule Media.PostgreSQL do
         {:error, :not_found, "Media does not exist"}
       else
         {false, -1} -> {:error, Helpers.id_error_message(media_id)}
-        media -> {:ok, media}
+        media -> {:ok, media |> Helpers.check_files_privacy()}
       end
     end
 
@@ -176,7 +179,7 @@ defmodule Media.PostgreSQL do
     defp get_platform_by_id(id) do
       Helpers.repo().get(Platform, id)
       |> case do
-        nil -> {:error, :not_found, "Media"}
+        nil -> {:error, :not_found, "Platform"}
         media -> {:ok, media}
       end
     end

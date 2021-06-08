@@ -146,14 +146,15 @@ defmodule Media.FiltersPostgreSQL do
       %{"title" => value}, dynamic ->
         dynamic([p], ^dynamic and p.title == ^value)
 
-      # %{"author" => value}, dynamic ->
-      #   dynamic([p], ^dynamic and p.author == ^value)
+      %{"author" => value}, dynamic ->
+        dynamic([p], ^dynamic and p.author == ^value)
 
-      # %{"private_status" => value}, dynamic ->
-      #   dynamic([p], ^dynamic and p.private_status == ^value)
+      %{"private_status" => value}, dynamic ->
+        dynamic([p], ^dynamic and p.private_status == ^value)
 
-      # %{"locked_status" => value}, dynamic ->
-      #   dynamic([p], ^dynamic and p.locked_status == ^value)
+      %{"locked_status" => value}, dynamic ->
+        ## to do check if the dates need more processing
+        dynamic([p], ^dynamic and p.locked_status == ^value)
 
       %{"number_of_medias" => value}, dynamic ->
         ## to do check if the dates need more processing

@@ -46,6 +46,12 @@ defmodule Media.Routes do
       scope unquote(scoped), MediaWeb do
         pipe_through(unquote(api_pipes))
 
+        post("/media", MediaController, :insert_media, as: :media)
+        put("/media", MediaController, :update_media, as: :media)
+        get("/media/:id", MediaController, :get_media, as: :media)
+        post("/medias", MediaController, :list_medias, as: :media)
+        delete("/media/:id", MediaController, :delete_media, as: :media)
+
         post("/platform", PlatformController, :insert_platform, as: :media)
         post("/platforms", PlatformController, :list_platforms, as: :media)
         get("/platform/:id", PlatformController, :get_platform, as: :media)

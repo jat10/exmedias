@@ -32,6 +32,7 @@ defmodule MediaWeb.PlatformController do
   def update_platform(conn, args) do
     case Context.update_platform(args) do
       {:ok, platform} -> render(conn, "platform.json", platform: platform)
+      {:error, :not_found, _} = fall_back_error -> fall_back_error
       {:error, %Ecto.Changeset{}} = fall_back_error -> fall_back_error
     end
   end
