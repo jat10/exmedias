@@ -8,17 +8,44 @@ defmodule Media.S3Manager do
 
   def upload_file(filename, path, destination) do
     # File.write!(filename, Base.decode64!(file))
+    ext =
+      filename
+      |> Path.extname()
+
+    filename = filename |> Path.basename(ext)
+
+    aws_filename =
+      "#{destination}/#{filename}#{
+        ext
+        |> unique_filename()
+      }"
+
+    ## for test mocking purposes
+    __MODULE__.upload(path, filename)
+  end
+
+  def upload_thumbnail(filename, path) do
+    filename = thumbnail_filename(filename)
+
+    __MODULE__.upload(path, filename)
+  end
+
+  def thumbnail_filename(filename) do
+    ext =
+      filename
+      |> Path.extname()
+
+    filename = filename |> Path.basename(ext)
+    "#{filename}_thumbnail#{ext}"
+  end
+
+  def upload(path, filename) do
     aws =
       path
-      # |> File.stream!()
       |> Upload.stream_file()
       |> S3.upload(
         Helpers.aws_bucket_name(),
-        "#{destination}/#{filename}#{
-          filename
-          |> Path.extname()
-          |> unique_filename()
-        }",
+        filename,
         content_type: MIME.from_path(filename)
       )
       |> ExAws.request!()

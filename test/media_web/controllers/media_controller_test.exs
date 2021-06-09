@@ -66,6 +66,15 @@ defmodule MediaWeb.MediaControllerTest do
           url: "some url"
         }}
      end,
+     upload_thumbnail: fn file_name, _path ->
+       {:ok,
+        %{
+          bucket: "aws_bucket_name",
+          filename: "#{file_name <> TestHelpers.uuid()}",
+          id: "#{TestHelpers.uuid()}",
+          url: "some url"
+        }}
+     end,
      change_object_privacy: fn _file_name, _privacy ->
        {:ok, %{}}
      end,
@@ -285,15 +294,6 @@ defmodule MediaWeb.MediaControllerTest do
       Routes.media_path(conn, :list_medias),
       attrs
     )
-  end
-
-  defp media_fixture(attrs \\ %{}) do
-    {:ok, media} =
-      attrs
-      |> Enum.into(@valid_attrs)
-      |> Media.Context.insert_media()
-
-    media
   end
 
   def test_invalid_media_creation_author do
@@ -520,7 +520,8 @@ defmodule MediaWeb.MediaControllerTest do
     assert resp = json_response(conn, 200)
     id = resp["id"]
 
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 2)
+    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
 
     assert @valid_attrs |> Map.put("id", id) |> Map.put("number_of_contents", 0) ==
              resp |> Map.delete("files")
@@ -551,7 +552,8 @@ defmodule MediaWeb.MediaControllerTest do
     ## two times due to the fact that we need to create the thumbnail
     ## so basically two calls to insert the media and 0 calls when we
     ## did update with the same files
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 2)
+    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
   end
 
   def test_update_media_files do
@@ -560,7 +562,8 @@ defmodule MediaWeb.MediaControllerTest do
     assert resp = json_response(conn, 200)
     id = resp["id"]
 
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 2)
+    assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
 
     assert @valid_attrs |> Map.put("id", id) |> Map.put("number_of_contents", 0) ==
              resp |> Map.delete("files")
@@ -600,7 +603,9 @@ defmodule MediaWeb.MediaControllerTest do
     ## two times due to the fact that we need to create the thumbnail
     ## so basically two calls to insert the media and 2 calls when we
     ## did update with different files
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 4)
+    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 2)
+    assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 2)
+
     ## Deleted the files that were initially created
     assert_called_exactly(S3Manager.delete_file(:_), 2)
   end
@@ -757,30 +762,29 @@ defmodule MediaWeb.MediaControllerTest do
   def create_files(attrs) do
     platform = platform_fixture(%{"name" => "#{TestHelpers.uuid()}"})
 
-    file =
-      case attrs["type"] do
-        "image" ->
-          [
-            %{
-              "file" => %Plug.Upload{
-                path: "test/fixtures/phoenix.png",
-                filename: "phoenix.png",
-                content_type: "image/png"
-              },
-              "platform_id" => platform.id
-            }
-          ]
+    case attrs["type"] do
+      "image" ->
+        [
+          %{
+            "file" => %Plug.Upload{
+              path: "test/fixtures/phoenix.png",
+              filename: "phoenix.png",
+              content_type: "image/png"
+            },
+            "platform_id" => platform.id
+          }
+        ]
 
-        "video" ->
-          [
-            %{
-              "file" => %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"},
-              "platform_id" => platform.id
-            }
-          ]
+      "video" ->
+        [
+          %{
+            "file" => %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"},
+            "platform_id" => platform.id
+          }
+        ]
 
-        _ ->
-          []
-      end
+      _ ->
+        []
+    end
   end
 end

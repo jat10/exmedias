@@ -462,13 +462,15 @@ defmodule Media.Helpers do
                  S3Manager.upload_file(file.filename, file.path, aws_bucket_name()),
                {:ok, _} <- S3Manager.change_object_privacy(file.filename, privacy) do
             ## create a temp directory that will get cleaned up at the end of this request
-            %{url: thumbnail_url, filename: thumbnail_filename} = create_thumbnail(file)
+            tmp_path = create_thumbnail(file.path)
+
+            {:ok, %{filename: _thumbnail_filename, url: thumbnail_url}} =
+              S3Manager.upload_thumbnail(filename, tmp_path)
 
             new_file
             |> Map.delete(:file)
             |> Map.merge(%{
               filename: filename,
-              thumbnail_filename: thumbnail_filename,
               thumbnail_url: thumbnail_url,
               file_id: file_id,
               url: url,
@@ -501,9 +503,9 @@ defmodule Media.Helpers do
     # ## delete files
 
     Enum.each(files_to_delete, fn
-      %{filename: filename, thumbnail_filename: thumbnail_filename} ->
+      %{filename: filename} ->
         S3Manager.delete_file(filename)
-        S3Manager.delete_file(thumbnail_filename)
+        S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
 
       _video ->
         :ok
@@ -656,18 +658,15 @@ defmodule Media.Helpers do
     Map.merge(file, private_data)
   end
 
-  def create_thumbnail(file) do
+  def create_thumbnail(path) do
     dir_path = Temp.mkdir!("tmp-dir")
-    tmp_path = Path.join(dir_path, "thumbnail.jpg")
+    tmp_path = Path.join(dir_path, "thumbnail-#{UUID.uuid4()}.jpg")
 
-    Thumbnex.create_thumbnail(file.path, tmp_path,
+    Thumbnex.create_thumbnail(path, tmp_path,
       max_width: 200,
       max_height: 200
     )
 
-    {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url}} =
-      S3Manager.upload_file("#{file.filename}-Thumbnail", tmp_path, aws_bucket_name())
-
-    %{filename: filename, id: file_id, url: url}
+    tmp_path
   end
 end

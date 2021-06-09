@@ -19,6 +19,15 @@ defmodule MediaWeb.PlatformControllerTest do
           url: "some url"
         }}
      end,
+     upload_thumbnail: fn file_name, _path ->
+       {:ok,
+        %{
+          bucket: "aws_bucket_name",
+          filename: "#{file_name <> TestHelpers.uuid()}",
+          id: "#{TestHelpers.uuid()}",
+          url: "some url"
+        }}
+     end,
      change_object_privacy: fn _file_name, _privacy ->
        {:ok, %{}}
      end,
