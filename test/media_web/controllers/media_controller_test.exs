@@ -337,8 +337,7 @@ defmodule MediaWeb.MediaControllerTest do
                  "size" => _13900,
                  "type" => _,
                  "url" => _url,
-                 "thumbnail_url" => _thumbnail_url,
-                 "thumbnail_filename" => _thumbnailfilename
+                 "thumbnail_url" => _thumbnail_url
                }
              ]
            } = resp
@@ -376,7 +375,6 @@ defmodule MediaWeb.MediaControllerTest do
                  "platform_id" => _1610,
                  "size" => _13900,
                  "type" => "image/png",
-                 "thumbnail_filename" => thumbnail_filename,
                  "thumbnail_url" => thumbnail_url,
                  "url" => url
                } = file
