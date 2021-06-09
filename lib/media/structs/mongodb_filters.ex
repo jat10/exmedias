@@ -30,10 +30,10 @@ defmodule Media.FiltersMongoDB do
     sorted_values =
       sort
       |> Enum.reduce(%{}, fn {key, value}, acc ->
-        acc |> Map.merge(Map.put(%{}, key, convert_sort(value)))
+        acc |> Map.merge(Map.put(%{}, "#{key}", convert_sort(value)))
       end)
 
-    %{"$sort" => sorted_values}
+    [%{"$sort" => sorted_values}]
   end
 
   def build_sort(nil), do: []

@@ -3,47 +3,46 @@ defmodule Media.Schema.File do
     This is the media schema model.
     It represents the media properties and their types.
     ```elixir
-    schema "media" do
-      field(:tags, {:array, :string})
-      field(:title, :string)
-      field(:author, :string)
-      ## [%{"size"=> 1_000, url=> "http://image.com/image/1", "filename"=> "image/1"}]
-      field(:files, {:array, :map})
-      field(:type, :string)
-      field(:locked_status, :string, default: "locked")
-      field(:private_status, :string, dedfault: "private")
-
-      many_to_many Application.get_env(:media, :content_table) |> String.to_atom(),
-                 Application.get_env(:media, :content_schema),
-                 join_through: "medias_contents"
-
-      timestamps()
-  end
-  ```elixir
-  """
-  @fields ~w(url size type filename duration platform_id s3_id)a
-  @videos_ext ["mp4"]
-  use Ecto.Schema
-  import Ecto.Changeset
-  alias Media.Helpers
-  alias Media.Platforms.Platform
-
-  # @derive {Jason.Encoder, only: @fields}
-  # @primary_key false
+   @primary_key false
   embedded_schema do
     field(:url, :string)
     field(:filename, :string)
     field(:type, :string)
     field(:size, :integer)
     field(:duration, :integer)
-    field(:s3_id, :string)
+    ## can be the s3_id, youtube_video_id etc..
+    field(:file_id, :string)
+    field(:thumbnail_url, :string)
+    belongs_to :platform, Platform, on_replace: :delete
+  end
+  ```elixir
+  """
+  @fields ~w(url size type filename duration platform_id file_id thumbnail_url)a
+  @videos_ext ["mp4"]
+  @derive {Jason.Encoder, only: @fields}
+  use Ecto.Schema
+  import Ecto.Changeset
+  alias Media.Helpers
+  alias Media.Platforms.Platform
+
+  # @derive {Jason.Encoder, only: @fields}
+  @primary_key false
+  embedded_schema do
+    field(:url, :string)
+    field(:filename, :string)
+    field(:type, :string)
+    field(:size, :integer)
+    field(:duration, :integer)
+    ## can be the s3_id, youtube_video_id etc..
+    field(:file_id, :string)
+    field(:thumbnail_url, :string)
     belongs_to :platform, Platform, on_replace: :delete
   end
 
   def changeset(file, attrs) do
     file
     |> cast(attrs, @fields)
-    |> validate_required([:type, :filename, :size, :url, :platform_id])
+    |> validate_required([:type, :url, :platform_id, :thumbnail_url, :file_id])
     |> validate_video()
     ## validate file extensions
     |> validate_platform_id()

@@ -1,9 +1,10 @@
 defmodule Media.Helpers do
   @moduledoc false
+  import Ecto.Changeset
+
   alias BSON.ObjectId
   alias Ecto.Changeset
-
-  alias Media.{MongoDB, PostgreSQL, S3Manager}
+  alias Media.{Helpers, MongoDB, PostgreSQL, S3Manager}
   @media_collection "media"
   @platform_collection "platform"
   # Returns the router helper module from the configs. Raises if the router isn't specified.
@@ -35,6 +36,17 @@ defmodule Media.Helpers do
 
       _ ->
         raise "Please configure your active database for :media application, accepted values for :active_database are ``mongoDB`` or ``postgreSQL``"
+    end
+  end
+
+  def aws_bucket_name do
+    env(:aws_bucket_name)
+    |> case do
+      nil ->
+        raise "Please make sure to configure your aws bucket to start uploading files."
+
+      bucket_name ->
+        bucket_name
     end
   end
 
@@ -151,6 +163,7 @@ defmodule Media.Helpers do
       item
       |> Morphix.atomorphiform!()
       |> Map.put(:id, id)
+      |> Map.delete(:_id)
       |> Map.put(:inserted_at, date)
     )
   end
@@ -250,7 +263,7 @@ defmodule Media.Helpers do
   ### FILTERS HELPERS ###
 
   def build_params(params) do
-    case build_args(params) do
+    case build_args(params |> Helpers.atomize_keys()) do
       {:ok, new_args} ->
         {:ok, new_args}
 
@@ -415,4 +428,245 @@ defmodule Media.Helpers do
   end
 
   def delete_s3_files(_files), do: :ok
+
+  ## complete update does not support partial one
+  ## all files will be replaced
+  ## deleting those that are not and uploading new ones.
+  def update_files(%Ecto.Changeset{valid?: false} = changeset, attrs),
+    do: {changeset, attrs |> Map.delete(:files)}
+
+  def update_files(%Ecto.Changeset{valid?: true} = changeset, attrs) do
+    new_files = attrs |> extract_param(:files, %{})
+
+    old_files = changeset |> get_field(:files) || []
+
+    privacy =
+      changeset |> get_field(:private_status) ||
+        "private"
+
+    type = changeset |> get_field(:type)
+
+    old_ids = old_files |> Enum.map(&Map.get(&1, :file_id))
+
+    {files_to_persist, ids_to_delete} =
+      Enum.reduce(new_files, {[], old_ids}, fn new_file,
+                                               {files_to_persist, files_ids_to_delete} ->
+        new_id = new_file |> Map.get(:file_id, -1)
+
+        new_file =
+          with false <- new_id in old_ids,
+               "image" <- type,
+               file <- new_file |> extract_param(:file),
+               %{size: size} <- File.stat!(file.path),
+               {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url}} <-
+                 S3Manager.upload_file(file.filename, file.path, aws_bucket_name()),
+               {:ok, _} <- S3Manager.change_object_privacy(file.filename, privacy) do
+            ## create a temp directory that will get cleaned up at the end of this request
+            tmp_path = create_thumbnail(file.path)
+
+            {:ok, %{filename: _thumbnail_filename, url: thumbnail_url}} =
+              S3Manager.upload_thumbnail(filename, tmp_path)
+
+            new_file
+            |> Map.delete(:file)
+            |> Map.merge(%{
+              filename: filename,
+              thumbnail_url: thumbnail_url,
+              file_id: file_id,
+              url: url,
+              type: file.content_type,
+              size: size
+            })
+          else
+            true ->
+              files_ids_to_delete = files_ids_to_delete -- [new_id]
+              new_file
+
+            "video" ->
+              handle_youtube_video(new_file)
+          end
+          |> Helpers.atomize_keys()
+
+        {files_to_persist ++ [new_file], files_ids_to_delete}
+      end)
+
+    files_to_delete = Enum.filter(old_files, &(Map.get(&1, :file_id) in ids_to_delete))
+
+    ## Check which files are removed
+    ## if a file is removed deleted from S3
+    ## if a file is updated remove the file and download a new one
+    ## For comparision rely on ids
+    # {files_to_delete, files_to_upload, files_to_persist}
+
+    # ## upload files
+    # Enum.each(files_to_upload, &S3Manager.upload_file(&1.filename, &1.path, aws_bucket_name()))
+    # ## delete files
+
+    Enum.each(files_to_delete, fn
+      %{filename: filename} ->
+        S3Manager.delete_file(filename)
+        S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
+
+      _video ->
+        :ok
+    end)
+
+    files_key = if Map.keys(attrs) |> Enum.any?(&(&1 |> is_atom)), do: :files, else: "files"
+    ## we check
+    attrs =
+      attrs
+      |> Map.put(
+        files_key,
+        files_to_persist
+      )
+
+    {changeset, attrs}
+    ## return new files
+    # Enum.each(files_to_delete, fn %{filename: filename} -> S3Manager.delete_file(filename), _video -> :ok end)
+  end
+
+  def youtube_endpoint do
+    "https://www.googleapis.com/youtube/v3"
+  end
+
+  def get_youtube_id(url) do
+    ## this is due to credo not accepting long line for regex so compiling it with a string passes
+    ## the "i" is for case insensitive
+    {:ok, valid_youtube_url?} =
+      Regex.compile(
+        "^(https?:\/\/)?((www\.)?(youtube(-nocookie)?|youtube.googleapis)\.com.*(v\/|v=|vi=|vi\/|e\/|embed\/|user\/.*\/u\/\d+\/)|youtu\.be\/)([_0-9a-z-]+)",
+        "i"
+      )
+
+    if Regex.match?(
+         valid_youtube_url?,
+         url
+       ) do
+      {:ok, capture_id} =
+        Regex.compile(
+          "^(https?:\/\/)?((www\.)?(youtube(-nocookie)?|youtube.googleapis)\.com.*(v\/|v=|vi=|vi\/|e\/|embed\/|user\/.*\/u\/\d+\/)|youtu\.be\/)(?<id>[_0-9a-z-]+)",
+          "i"
+        )
+
+      {:ok,
+       Regex.named_captures(
+         capture_id,
+         "http://youtu.be/0zM3nApSvMg"
+       )}
+    else
+      {:error, :not_youtube_url}
+    end
+  end
+
+  ## gets youtube details on the video using the api key and video id
+  def youtube_video_details(video_id) do
+    endpoint_get_callback(
+      "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{Helpers.env(:youtube_api_key)}&part=contentDetails"
+    )
+  end
+
+  def endpoint_get_callback(
+        url,
+        headers \\ [{"content-type", "application/json"}]
+      ) do
+    case HTTPoison.get(url, headers) do
+      {:ok, response} ->
+        fetch_response_body(response)
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  defp fetch_response_body(response) do
+    case Poison.decode(response.body) do
+      {:ok, body} ->
+        body
+
+      _ ->
+        {:error, response.body}
+    end
+  end
+
+  def handle_youtube_video(file) do
+    video_file = extract_param(file, :file)
+    url = extract_param(video_file, :url)
+
+    with {:ok, %{"id" => video_id}} <- get_youtube_id(url),
+         {:ok, %{"items" => items}} <- __MODULE__.youtube_video_details(url) do
+      thumbnail_url = "https://img.youtube.com/vi/#{video_id}/default.jpg"
+
+      duration =
+        items
+        |> List.first()
+        |> Map.get("contentDetails")
+        |> Map.get("duration")
+        |> format_duration()
+
+      file
+      |> atomize_keys()
+      |> Map.merge(%{
+        duration: duration,
+        file_id: video_id,
+        url: url,
+        type: "mp4",
+        thumbnail_url: thumbnail_url
+      })
+      |> Map.delete(:file)
+    else
+      {:error, :not_youtube_url} ->
+        {:error, "This video is not a youtube video"}
+
+      {:error, _} ->
+        {:error, "Could not fetch youtube video details"}
+    end
+  end
+
+  # convert the youtube's duration representation to seconds
+  defp format_duration(duration) do
+    ## this will output ["1", "30", "40"] first one for hours second for minutes third for seconds
+    list_of_time = String.splitter(duration, ["PT", "H", "M", "S"]) |> Enum.reject(&(&1 == ""))
+    format_duration(list_of_time, :erlang.length(list_of_time))
+  end
+
+  defp format_duration(list_of_time, 1) do
+    String.to_integer(List.first(list_of_time))
+  end
+
+  defp format_duration(list_of_time, 2) do
+    String.to_integer(Enum.at(list_of_time, 0)) * 60 + String.to_integer(Enum.at(list_of_time, 1))
+  end
+
+  defp format_duration(list_of_time, 3) do
+    String.to_integer(Enum.at(list_of_time, 0)) * 3600 +
+      String.to_integer(Enum.at(list_of_time, 1)) * 60 +
+      String.to_integer(Enum.at(list_of_time, 2))
+  end
+
+  def check_files_privacy(%{files: files, private_status: "public"} = media), do: media
+
+  def check_files_privacy(%{files: files, private_status: "private"} = media) do
+    Map.put(media, :files, files |> Enum.map(&add_privacy_data(&1)))
+  end
+
+  def add_privacy_data(%{file_id: id, filename: filename} = file) do
+    ## get the headers and updated url for private files
+    private_data =
+      S3Manager.get_temporary_aws_credentials(id)
+      |> S3Manager.read_private_object("#{Helpers.aws_bucket_name()}/#{filename}")
+
+    Map.merge(file, private_data)
+  end
+
+  def create_thumbnail(path) do
+    dir_path = Temp.mkdir!("tmp-dir")
+    tmp_path = Path.join(dir_path, "thumbnail-#{UUID.uuid4()}.jpg")
+
+    Thumbnex.create_thumbnail(path, tmp_path,
+      max_width: 200,
+      max_height: 200
+    )
+
+    tmp_path
+  end
 end

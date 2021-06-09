@@ -21,14 +21,15 @@ defmodule Media.PostgreSQL.Schema do
   end
   ```elixir
   """
-  # @common_metadata ~w(platform_id url size type filename s3_id)a
+  # @common_metadata ~w(platform_id url size type filename file_id)a
   # @metadata_per_type %{"video" => ~w(duration)a, "podcast" => ~w(duration)a}
   use Ecto.Schema
   import Ecto.Changeset
   alias Media.Helpers
   alias Media.Schema.File
   @fields ~w(title author tags type locked_status private_status seo_tag)a
-  # @derive {Jason.Encoder, only: @fields}
+  @derive {Jason.Encoder,
+           only: @fields ++ [:id, :number_of_contents, :files, :updated_at, :inserted_at]}
   schema "media" do
     field(:tags, {:array, :string})
     field(:title, :string)
@@ -43,16 +44,22 @@ defmodule Media.PostgreSQL.Schema do
   end
 
   def changeset(media, attrs) do
-    media
-    |> cast(attrs, @fields)
-    |> cast_embed(
+    {changeset, attrs} =
+      media
+      |> cast(attrs, @fields)
+      |> validate_inclusion(:locked_status, ["locked", "unlocked"])
+      |> validate_required([:author, :type])
+      |> validate_inclusion(:private_status, ["public", "private"])
+      |> validate_inclusion(:type, ["image", "video", "document", "podcast"])
+      |> Helpers.update_files(attrs)
+
+    changeset = Map.put(changeset, :params, attrs)
+
+    changeset
+    |> put_embed(
       :files,
-      with: &File.changeset/2
+      attrs |> Helpers.extract_param(:files)
     )
-    |> validate_inclusion(:locked_status, ["locked", "unlocked"])
-    |> validate_required([:author, :type])
-    |> validate_inclusion(:private_status, ["public", "private"])
-    |> validate_inclusion(:type, ["image", "video", "document", "podcast"])
 
     # |> put_assoc(
     #   Helpers.env(:content_table) |> String.to_atom(),

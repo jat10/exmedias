@@ -12,6 +12,8 @@ defmodule Media.MongoDB do
     alias Media.Platforms.Platform
     ## TO DO to be altered in next issues
     def list_platforms(%MongoDB{args: args}) do
+      args = args |> Helpers.atomize_keys()
+
       pagination_pipe =
         Helpers.build_pagination(
           Helpers.extract_param(args, :page),
@@ -45,7 +47,7 @@ defmodule Media.MongoDB do
           {:error, error} ->
             error
 
-          {sort, {initial_computation, computed_filters, normal_filters}} = res ->
+          {sort, {initial_computation, computed_filters, normal_filters}} ->
             ## this can be used later for further computations
             ## so we can optimize our query (running the normal filters first for ex.)
             # initial_computations ++
@@ -84,6 +86,8 @@ defmodule Media.MongoDB do
 
     """
     def list_medias(%MongoDB{args: args}) do
+      args = args |> Helpers.atomize_keys()
+
       pagination_pipe =
         Helpers.build_pagination(
           Helpers.extract_param(args, :page),
@@ -112,7 +116,7 @@ defmodule Media.MongoDB do
                   |> Cartesian.possible_combinations(),
                   operations
                 )} do
-          {[], sort}
+          {sort, []}
         else
           {:error, error} ->
             error
@@ -143,19 +147,9 @@ defmodule Media.MongoDB do
       if filters == [], do: [], else: [%{"$match" => %{"$and" => filters}}]
     end
 
-    # def get_media(%MongoDB{args: id}) do
-    #   case get_full_media(id) do
-    #     [] ->
-    #       {:error, :not_found, "media"}
-
-    #     item ->
-    #       item |> Map.get(:result) |> Enum.at(0)
-    #   end
-    # end
-
     def insert_media(args), do: insert(args, @media_collection)
 
-    ## Bwhen submitting the form this will be called inside the controller after the file management is done
+    ## When submitting the form this will be called inside the controller after the file management is done
     def update_media(%MongoDB{args: %{id: id} = args}) do
       with {:ok, %MediaSchema{} = media} <- get(%MongoDB{args: id}, @media_collection),
            data <- MediaSchema.changeset(media, args),
@@ -166,8 +160,6 @@ defmodule Media.MongoDB do
           {:error, %{error: "#{@media_collection} does not exist"}}
 
         {data, false} ->
-          ## TO DO we should cover this to return a proper error in case the changeset
-          ## is not valid
           {:error, data}
       end
     end
@@ -180,7 +172,7 @@ defmodule Media.MongoDB do
         {:error, :not_found, _message} = res ->
           res
 
-        {media, true} ->
+        {_media, true} ->
           {:error, "This Media cannot be deleted as it used by contents."}
 
         false ->
@@ -267,7 +259,7 @@ defmodule Media.MongoDB do
         {:error, :not_found, @media_collection |> String.capitalize()}
       else
         %{result: result} ->
-          {:ok, result |> List.first()}
+          {:ok, result |> List.first() |> Helpers.check_files_privacy()}
 
         false ->
           {:error, Helpers.id_error_message(id)}
@@ -303,10 +295,6 @@ defmodule Media.MongoDB do
           pagintaion_pipe \\ []
         ) do
       ## I had to put the join pipes first as the other pipes might depend on its result in some cases
-      filters_pipe
-      additional_pipes
-      sort_pipe
-
       pipes =
         additional_pipes ++
           filters_pipe ++
@@ -368,11 +356,15 @@ defmodule Media.MongoDB do
     def insert(%MongoDB{args: args}, collection) do
       module = schema_to_module(collection)
       # data = Media.changeset(%Media{}, args) equivalent to the line below
-      data = apply(module, :changeset, [module |> struct(%{}), args])
+      data = apply(module, :changeset, [module |> struct(%{}), args |> Helpers.atomize_keys()])
 
       with true <- data.valid?,
            {:ok, result} <-
-             Mongo.insert_one(Helpers.repo(), collection, Helpers.get_changes(data)) do
+             Mongo.insert_one(
+               Helpers.repo(),
+               collection,
+               Helpers.get_changes(data)
+             ) do
         get(%MongoDB{args: ObjectId.encode!(result.inserted_id)}, collection)
       else
         {:error, %{write_errors: [%{"code" => 11_000}]}} ->
@@ -386,7 +378,6 @@ defmodule Media.MongoDB do
       end
     end
 
-    ## TO DO work this out to be generic
     def update(data, id, collection) do
       case Mongo.update_one(
              Helpers.repo(),
@@ -401,7 +392,6 @@ defmodule Media.MongoDB do
              }
            ) do
         {:ok, _result} ->
-          ## why accessing the databse again let's try return the result variable
           get(%MongoDB{args: id}, collection)
 
         _err ->
@@ -431,14 +421,6 @@ defmodule Media.MongoDB do
         }
       ]
     end
-
-    # defp number_of_medias do
-    #   [
-    #     %{
-    #       "$addFields" => %{"number_of_medias" => %{"$size" => "$medias"}}
-    #     }
-    #   ]
-    # end
 
     defp join_pipe_platform do
       [

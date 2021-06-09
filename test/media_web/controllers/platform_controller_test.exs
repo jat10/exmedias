@@ -1,6 +1,55 @@
 defmodule MediaWeb.PlatformControllerTest do
   use MediaWeb.ConnCase
   alias Media.TestHelpers
+  alias Media.{Helpers, S3Manager}
+  import Mock
+
+  setup_with_mocks([
+    {Helpers, [:passthrough],
+     youtube_video_details: fn _url ->
+       {:ok, %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}}
+     end},
+    {S3Manager, [:passthrough],
+     upload_file: fn file_name, _path, aws_bucket_name ->
+       {:ok,
+        %{
+          bucket: aws_bucket_name,
+          filename: "#{file_name <> TestHelpers.uuid()}",
+          id: "#{TestHelpers.uuid()}",
+          url: "some url"
+        }}
+     end,
+     upload_thumbnail: fn file_name, _path ->
+       {:ok,
+        %{
+          bucket: "aws_bucket_name",
+          filename: "#{file_name <> TestHelpers.uuid()}",
+          id: "#{TestHelpers.uuid()}",
+          url: "some url"
+        }}
+     end,
+     change_object_privacy: fn _file_name, _privacy ->
+       {:ok, %{}}
+     end,
+     get_temporary_aws_credentials: fn _unique_id ->
+       %{
+         access_key: "access_key_id",
+         secret_key: "secret_access_key",
+         session_token: "session_token"
+       }
+     end,
+     read_private_object: fn _credentials, _destination ->
+       %{
+         url: "private url",
+         headers: %{}
+       }
+     end,
+     delete_file: fn _filename ->
+       {:ok, %{}}
+     end}
+  ]) do
+    :ok
+  end
 
   @valid_media_attrs %{
     author: "some author id",
@@ -363,25 +412,17 @@ defmodule MediaWeb.PlatformControllerTest do
 
     image_file = [
       %{
-        type: "jpeg",
-        filename: "image.jpeg",
-        url: "http://url.com",
-        size: 4_000_000,
-        platform_id: platform["id"],
-        s3_id: TestHelpers.uuid()
+        file: %Plug.Upload{
+          path: "test/fixtures/phoenix.png",
+          filename: "phoenix.png",
+          content_type: "image/png"
+        },
+        platform_id: platform["id"]
       }
     ]
 
     files = [
-      %{
-        type: "mp4",
-        filename: "video.mp4",
-        url: "http://url.com",
-        duration: 240,
-        size: 4_000_000,
-        platform_id: platform["id"],
-        s3_id: TestHelpers.uuid()
-      }
+      %{file: %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"}, platform_id: platform["id"]}
     ]
 
     media_fixture(%{files: files})
