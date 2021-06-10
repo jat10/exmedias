@@ -65,8 +65,12 @@ config :media, MediaWeb.Endpoint,
     ]
   ]
 
+config :ex_aws,
+  access_key_id: "YOUR_AWS_ACCESS_KEY_ID",
+  secret_access_key: "YOUR_AWS_ACCESS_KEY_SECRET"
+
 config :media,
-  youtube_api_key: "AIzaSyBwQKaaQkFMECh7ZprUHRyzgBClx3A9Sgk"
+  youtube_api_key: "YOUTUBE_API_SECRET"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"
