@@ -252,6 +252,12 @@ defmodule MediaWeb.MediaControllerTest do
       test_delete_invalid_id()
     end
 
+    test "Delete /media/:id deletes a media (that is already used)", %{conn: _conn} do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+
+      test_delete_media_used()
+    end
+
     test "Put /media/:id updates a media", %{conn: _conn} do
       TestHelpers.set_repo(:mongo, "mongoDB")
 
@@ -439,7 +445,25 @@ defmodule MediaWeb.MediaControllerTest do
     #   )
     {:ok, %{id: ^id} = media} = Media.Context.get_media(id)
 
-    Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media]})
+    content_id =
+      Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media]})
+
+    ## reference media for mongo
+    if Application.get_env(:media, :repo) == :mongo do
+      conn1 = build_conn()
+
+      conn1 =
+        put(
+          conn1,
+          Routes.media_path(conn1, :update_media),
+          @update_attrs
+          |> Map.put("id", id)
+          |> Map.put("files", resp["files"])
+          |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
+        )
+
+      json_response(conn1, 200)
+    end
 
     # assert %{"id" => ^id} = json_response(conn1, 200)
 
