@@ -12,7 +12,8 @@ defmodule MediaWeb.MediaControllerTest do
     "seo_tag" => "some seo tag",
     "tags" => ["tag1", "tag2"],
     "title" => "some media title",
-    "type" => "image"
+    "type" => "image",
+    "namespace" => "test"
   }
   @invalid_attrs_author %{
     author: nil,
@@ -54,7 +55,7 @@ defmodule MediaWeb.MediaControllerTest do
   setup_with_mocks([
     {Helpers, [:passthrough],
      youtube_video_details: fn _url ->
-       {:ok, %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}}
+       %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}
      end},
     {S3Manager, [:passthrough],
      upload_file: fn file_name, _path, aws_bucket_name ->
@@ -142,6 +143,11 @@ defmodule MediaWeb.MediaControllerTest do
       test_get_nonexisting_media(0)
     end
 
+    test "GET /media/namespaced/:namespace", %{conn: _conn} do
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
+      test_media_count()
+    end
+
     test "Delete /media/:id deletes a media", %{conn: _conn} do
       TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
@@ -224,6 +230,11 @@ defmodule MediaWeb.MediaControllerTest do
 
     test "GET /media/:id returns error when it doesn't exist", %{conn: _conn} do
       test_get_nonexisting_media("012345678912345678901234")
+    end
+
+    test "GET /media/namespaced/:namespace", %{conn: _conn} do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+      test_media_count()
     end
 
     test "Delete /media/:id deletes a media", %{conn: _conn} do
@@ -717,6 +728,45 @@ defmodule MediaWeb.MediaControllerTest do
              ],
              "total" => 1
            } = json_response(conn, 200)
+  end
+
+  def test_media_count do
+    conn = create_media()
+    assert json_response(conn, 200)
+    conn = create_media()
+    assert json_response(conn, 200)
+    namespace = "another namespace"
+    conn = create_media(@valid_attrs |> Map.merge(%{"namespace" => namespace}))
+    assert json_response(conn, 200)
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        Routes.media_path(conn, :count_namespace, "test")
+      )
+
+    assert %{"total" => 2} = json_response(conn, 200)
+
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        Routes.media_path(conn, :count_namespace, namespace)
+      )
+
+    assert %{"total" => 1} = json_response(conn, 200)
+
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        Routes.media_path(conn, :count_namespace, "non-existing-name-space")
+      )
+
+    assert %{"total" => 0} = json_response(conn, 200)
   end
 
   def test_list_medias_pagination do

@@ -10,6 +10,12 @@ defmodule Media.MongoDB do
     alias Media.{Cartesian, FiltersMongoDB, Helpers, MongoDB}
     alias Media.MongoDB.Schema, as: MediaSchema
     alias Media.Platforms.Platform
+
+    def count_namespace(%{args: namespace}) do
+      {:ok, total} = Mongo.count(:mongo, @media_collection, %{namespace: namespace})
+      {:ok, %{total: total}}
+    end
+
     ## TO DO to be altered in next issues
     def list_platforms(%MongoDB{args: args}) do
       args = args |> Helpers.atomize_keys()

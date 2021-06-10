@@ -29,7 +29,8 @@ defmodule MediaWeb.MediaView do
       seo_tag: seo_tag,
       id: id |> format_id(),
       number_of_contents: Map.get(media, :number_of_contents, 0),
-      files: media.files |> Enum.map(&(&1 |> format_file()))
+      files: media.files |> Enum.map(&(&1 |> format_file())),
+      namespace: media.namespace
     }
   end
 
@@ -75,5 +76,9 @@ defmodule MediaWeb.MediaView do
 
   def render("medias.json", %{medias: medias, total: total}) do
     %{result: render_many(medias, MediaView, "media.json"), total: total}
+  end
+
+  def render("count.json", %{total: total}) do
+    %{total: total}
   end
 end

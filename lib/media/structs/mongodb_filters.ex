@@ -1,7 +1,5 @@
 defmodule Media.FiltersMongoDB do
-  @moduledoc """
-  Filters
-  """
+  @moduledoc false
   # alias Media.Helpers
   # alias Media.PostgreSQL
   @computed_filters ["number_of_contents"]
