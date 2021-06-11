@@ -16,6 +16,17 @@ defmodule Media.PostgreSQL do
     alias Media.PostgreSQL.Schema, as: MediaSchema
     import Ecto.Query, warn: false
 
+    def count_namespace(%{args: namespace}) do
+      res =
+        from(m in MediaSchema,
+          where: m.namespace == ^namespace,
+          select: %{total: fragment("count(?)", m.id)}
+        )
+        |> Helpers.repo().one()
+
+      {:ok, res}
+    end
+
     def insert_media(%{args: attrs}) do
       %MediaSchema{}
       |> MediaSchema.changeset(attrs)

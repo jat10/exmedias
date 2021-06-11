@@ -1,12 +1,12 @@
 defmodule MediaWeb.ChangesetView do
   use MediaWeb, :view
+  @moduledoc false
+  # """
+  # Traverses and translates changeset errors.
 
-  @doc """
-  Traverses and translates changeset errors.
-
-  See `Ecto.Changeset.traverse_errors/2` and
-  `MediaWeb.ErrorHelpers.translate_error/1` for more details.
-  """
+  # See `Ecto.Changeset.traverse_errors/2` and
+  # `MediaWeb.ErrorHelpers.translate_error/1` for more details.
+  # """
   def translate_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn error -> translate_error(error) end)
   end

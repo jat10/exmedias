@@ -1,7 +1,5 @@
 defmodule Media.FiltersPostgreSQL do
-  @moduledoc """
-  Filters
-  """
+  @moduledoc false
   # alias Media.Helpers
   # alias Media.PostgreSQL
   @computed_filters ["number_of_contents"]
@@ -145,6 +143,9 @@ defmodule Media.FiltersPostgreSQL do
     Enum.reduce(filter, true, fn
       %{"title" => value}, dynamic ->
         dynamic([p], ^dynamic and p.title == ^value)
+
+      %{"namespace" => value}, dynamic ->
+        dynamic([p], ^dynamic and p.namespace == ^value)
 
       %{"author" => value}, dynamic ->
         dynamic([p], ^dynamic and p.author == ^value)

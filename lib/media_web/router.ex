@@ -1,6 +1,6 @@
 defmodule Media.Routes do
   @moduledoc """
-  Media.Routes must be "used" in your phoenix routes:
+  Media.Routes must be used in your phoenix routes as follows:
 
   ```elixir
   use Media.Routes, scope: "/", pipe_through: [:browser, :authenticate]
@@ -8,7 +8,23 @@ defmodule Media.Routes do
 
   `:scope` defaults to `"/media"`
 
-  `:pipe_through` defaults to media's `[:media_browser]`
+  `:pipe_through` defaults to media's `[:media_browser]`, you can customize the pipeline as you want.
+
+  The supported routes are:
+  ```elixir
+  post("/media", MediaController, :insert_media, as: :media)
+  put("/media", MediaController, :update_media, as: :media)
+  get("/media/:id", MediaController, :get_media, as: :media)
+  post("/medias", MediaController, :list_medias, as: :media)
+  delete("/media/:id", MediaController, :delete_media, as: :media)
+  get("/medias/namespaced/:namespace", MediaController, :count_namespace, as: :media)
+
+  post("/platform", PlatformController, :insert_platform, as: :media)
+  post("/platforms", PlatformController, :list_platforms, as: :media)
+  get("/platform/:id", PlatformController, :get_platform, as: :media)
+  put("/platform/:id", PlatformController, :update_platform, as: :media)
+  delete("/platform/:id", PlatformController, :delete_platform, as: :media)
+  ```
   """
 
   # use Phoenix.Router
@@ -51,6 +67,7 @@ defmodule Media.Routes do
         get("/media/:id", MediaController, :get_media, as: :media)
         post("/medias", MediaController, :list_medias, as: :media)
         delete("/media/:id", MediaController, :delete_media, as: :media)
+        get("/medias/namespaced/:namespace", MediaController, :count_namespace, as: :media)
 
         post("/platform", PlatformController, :insert_platform, as: :media)
         post("/platforms", PlatformController, :list_platforms, as: :media)

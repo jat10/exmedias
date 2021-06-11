@@ -22,6 +22,8 @@ defmodule Media.Test.Contents do
       )
 
     Mongo.find_one(:mongo, "content", %{_id: content.inserted_id})
+
+    content.inserted_id
   end
 
   def create_content(repo, attrs) do

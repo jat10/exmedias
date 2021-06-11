@@ -7,7 +7,7 @@ defmodule MediaWeb.PlatformControllerTest do
   setup_with_mocks([
     {Helpers, [:passthrough],
      youtube_video_details: fn _url ->
-       {:ok, %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}}
+       %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}
      end},
     {S3Manager, [:passthrough],
      upload_file: fn file_name, _path, aws_bucket_name ->

@@ -174,7 +174,8 @@ defmodule Media.Helpers do
       indexes: [
         %{key: %{author: 1}, name: "name_idx", unique: false},
         %{key: %{type: 1}, name: "type_idx", unique: false},
-        %{key: %{contents_used: 1}, name: "contents_idx", unique: false}
+        %{key: %{contents_used: 1}, name: "contents_idx", unique: false},
+        %{key: %{namespace: 1}, name: "namespace_idx", unique: false}
       ]
     })
 
@@ -551,7 +552,7 @@ defmodule Media.Helpers do
       {:ok,
        Regex.named_captures(
          capture_id,
-         "http://youtu.be/0zM3nApSvMg"
+         url
        )}
     else
       {:error, :not_youtube_url}
@@ -561,7 +562,7 @@ defmodule Media.Helpers do
   ## gets youtube details on the video using the api key and video id
   def youtube_video_details(video_id) do
     endpoint_get_callback(
-      "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{Helpers.env(:youtube_api_key)}&part=contentDetails"
+      "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{env(:youtube_api_key)}&part=contentDetails"
     )
   end
 
@@ -593,14 +594,18 @@ defmodule Media.Helpers do
     url = extract_param(video_file, :url)
 
     with {:ok, %{"id" => video_id}} <- get_youtube_id(url),
-         {:ok, %{"items" => items}} <- __MODULE__.youtube_video_details(url) do
+         %{"items" => items} <-
+           __MODULE__.youtube_video_details(url) do
       thumbnail_url = "https://img.youtube.com/vi/#{video_id}/default.jpg"
 
-      duration =
+      details =
         items
-        |> List.first()
-        |> Map.get("contentDetails")
-        |> Map.get("duration")
+        |> List.first() || %{}
+
+      duration =
+        details
+        |> Map.get("contentDetails", %{})
+        |> Map.get("duration", "PT0M0S")
         |> format_duration()
 
       file

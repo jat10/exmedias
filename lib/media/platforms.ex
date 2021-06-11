@@ -1,7 +1,5 @@
 defmodule Media.Platforms do
-  @moduledoc """
-  The Platforms context for postgres.
-  """
+  @moduledoc false
 
   import Ecto.Query, warn: false
   alias Media.Helpers

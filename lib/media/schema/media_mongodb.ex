@@ -4,18 +4,23 @@ defmodule Media.MongoDB.Schema do
     It represents the media properties and their types.
     ```elixir
     schema "media" do
-      field(:tags, {:array, :string})
-      field(:title, :string)
-      field(:author, :string)
-      field(:contents_used, {:array, :string}) ## the contents using this media
-      ## [%{"size"=> 1_000, url=> "http://image.com/image/1", "filename"=> "image/1"}]
-      field(:files, {:array, :map})
-      field(:type, :string)
-      field(:locked_status, :string, default: "locked")
-      field(:private_status, :string, dedfault: "private")
+    field(:tags, {:array, :string})
+    field(:title, :string)
+    field(:author, :string)
+    field(:contents_used, {:array, :string}, default: [])
+    ## [%{"size"=> 1_000, url=> "http://image.com/image/1", "filename"=> "image/1"}]
+    field(:files, {:array, :map})
+    field(:type, :string)
+    field(:locked_status, :string, default: "locked")
+    field(:private_status, :string, dedfault: "private")
+    field(:seo_tag, :string)
+    ## can be used for grouping media together.
+    field(:namespace, :string)
+    ## virtual as this will not be stored in the database but will be returned when querying
+    ## so that we have a proper mapping with the schema
+    field(:number_of_contents, :integer, virtual: true, default: 0)
 
-      timestamps()
-  end
+    timestamps()
   ```elixir
   """
   @common_file_metadata ~w(url type platform_id file_id thumbnail_url)a
@@ -28,7 +33,8 @@ defmodule Media.MongoDB.Schema do
   import Ecto.Changeset
   alias BSON.ObjectId
   alias Media.Helpers
-  @fields ~w(title author seo_tag contents_used tags type locked_status private_status files)a
+
+  @fields ~w(title author seo_tag contents_used tags type locked_status private_status files namespace)a
   @derive {Jason.Encoder, only: @fields}
   schema "media" do
     field(:tags, {:array, :string})
@@ -41,6 +47,7 @@ defmodule Media.MongoDB.Schema do
     field(:locked_status, :string, default: "locked")
     field(:private_status, :string, dedfault: "private")
     field(:seo_tag, :string)
+    field(:namespace, :string)
     ## virtual as this will not be stored in the database but will be returned when querying
     ## so that we have a proper mapping with the schema
     field(:number_of_contents, :integer, virtual: true, default: 0)
@@ -48,34 +55,45 @@ defmodule Media.MongoDB.Schema do
     timestamps()
   end
 
-  # Media.Context.insert_media(%{
-  #   title: "Media 2",
-  #   seo_tag: "seo optimization2",
-  #   author: "Zaher2",
-  #   contents_used: ["2"],
-  #   type: "image",
-  #   files: [
-  #     %{
-  #       url: "http://something.com",
-  #       size: 4_000,
-  #       type: "png",
-  #       filename: "image.png",
-  #       platform_id: "mobile"
-  #     }
-  #   ]
-  # })
-
   @doc """
   In the changeset function, we validate the user's inputs.
 
-  - We make sure ``locked_status`` is included in the values ``locked`` or ``unlocked``, also the ``private_status`` is eirther ``public`` or private``.
+  - We make sure ``locked_status`` is included in the values ``locked`` or ``unlocked``, also the ``private_status`` is eirther ``public`` or ``private``.
+
   - Both fields ``type`` and ``author`` are required.
+
   - Media ``type`` can be either ``image``, ``video``, ``document``, ``podcast``
+
   - Finally we validate the files input based on the type:
+
     - All the medias should have the following fields: ``platform``, ``size`` (in mb).
+
     - ``Podcasts`` and ``videos`` also have a ``duration`` field.
 
+  Example of a media struct:
+
+  ```elixir
+  %{
+  title: "Welcome Image",
+  seo_tag: "seo optimization2",
+  tags: ["nature", "green"],
+  author: "John Doe",
+  contents_used: ["2"],
+  type: "image",
+  files: [
+      %{
+        url: "https://path_to_image.com",
+        size: 4_000,
+        type: "png",
+        filename: "image.png",
+        platform_id: 1,
+        thumbnail_url:  "https://path_to_thumbnail_image.com"
+      }
+    ]
+  }
+  ```
   """
+
   def changeset(media, attrs) do
     {changeset, attrs} =
       media
@@ -92,11 +110,6 @@ defmodule Media.MongoDB.Schema do
     changeset
     |> cast(attrs, [:files])
     |> validate_files(attrs |> Map.get(:files) || attrs |> Map.get("files"))
-
-    # changeset
-    # |> cast_embed(:files,
-    #   with: {Schema, :files_changeset, [get_field(changeset, :type)]}
-    # )
   end
 
   defp validate_contents_used(%Ecto.Changeset{valid?: false} = changeset, _content), do: changeset

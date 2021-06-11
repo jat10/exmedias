@@ -12,7 +12,8 @@ defmodule MediaWeb.MediaControllerTest do
     "seo_tag" => "some seo tag",
     "tags" => ["tag1", "tag2"],
     "title" => "some media title",
-    "type" => "image"
+    "type" => "image",
+    "namespace" => "test"
   }
   @invalid_attrs_author %{
     author: nil,
@@ -54,7 +55,7 @@ defmodule MediaWeb.MediaControllerTest do
   setup_with_mocks([
     {Helpers, [:passthrough],
      youtube_video_details: fn _url ->
-       {:ok, %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}}
+       %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}
      end},
     {S3Manager, [:passthrough],
      upload_file: fn file_name, _path, aws_bucket_name ->
@@ -142,6 +143,11 @@ defmodule MediaWeb.MediaControllerTest do
       test_get_nonexisting_media(0)
     end
 
+    test "GET /media/namespaced/:namespace", %{conn: _conn} do
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
+      test_media_count()
+    end
+
     test "Delete /media/:id deletes a media", %{conn: _conn} do
       TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
@@ -226,6 +232,11 @@ defmodule MediaWeb.MediaControllerTest do
       test_get_nonexisting_media("012345678912345678901234")
     end
 
+    test "GET /media/namespaced/:namespace", %{conn: _conn} do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+      test_media_count()
+    end
+
     test "Delete /media/:id deletes a media", %{conn: _conn} do
       test_delete_media()
     end
@@ -239,6 +250,12 @@ defmodule MediaWeb.MediaControllerTest do
       TestHelpers.set_repo(:mongo, "mongoDB")
 
       test_delete_invalid_id()
+    end
+
+    test "Delete /media/:id deletes a media (that is already used)", %{conn: _conn} do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+
+      test_delete_media_used()
     end
 
     test "Put /media/:id updates a media", %{conn: _conn} do
@@ -428,7 +445,25 @@ defmodule MediaWeb.MediaControllerTest do
     #   )
     {:ok, %{id: ^id} = media} = Media.Context.get_media(id)
 
-    Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media]})
+    content_id =
+      Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media]})
+
+    ## reference media for mongo
+    if Application.get_env(:media, :repo) == :mongo do
+      conn1 = build_conn()
+
+      conn1 =
+        put(
+          conn1,
+          Routes.media_path(conn1, :update_media),
+          @update_attrs
+          |> Map.put("id", id)
+          |> Map.put("files", resp["files"])
+          |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
+        )
+
+      json_response(conn1, 200)
+    end
 
     # assert %{"id" => ^id} = json_response(conn1, 200)
 
@@ -717,6 +752,45 @@ defmodule MediaWeb.MediaControllerTest do
              ],
              "total" => 1
            } = json_response(conn, 200)
+  end
+
+  def test_media_count do
+    conn = create_media()
+    assert json_response(conn, 200)
+    conn = create_media()
+    assert json_response(conn, 200)
+    namespace = "another namespace"
+    conn = create_media(@valid_attrs |> Map.merge(%{"namespace" => namespace}))
+    assert json_response(conn, 200)
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        Routes.media_path(conn, :count_namespace, "test")
+      )
+
+    assert %{"total" => 2} = json_response(conn, 200)
+
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        Routes.media_path(conn, :count_namespace, namespace)
+      )
+
+    assert %{"total" => 1} = json_response(conn, 200)
+
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        Routes.media_path(conn, :count_namespace, "non-existing-name-space")
+      )
+
+    assert %{"total" => 0} = json_response(conn, 200)
   end
 
   def test_list_medias_pagination do

@@ -6,6 +6,7 @@ defprotocol DB do
   def insert_media(struct)
   def update_media(struct)
   def delete_media(struct)
+  def count_namespace(struct)
 
   def list_platforms(struct)
   def get_platform(struct)
