@@ -13,15 +13,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v2
+    - uses: jruipinto/ImageMagick-action@v1
+    - uses: FedericoCarboni/setup-ffmpeg@v1
     # with:
       # Not strictly necessary, but it may prevent rate limit
       # errors especially on GitHub-hosted macos machines.
       # token: ${{ secrets.GITHUB_TOKEN }}
     # id: setup-ffmpeg
     - name: Set up Elixir
-      uses: actions/checkout@v2
-      uses: jruipinto/ImageMagick-action@v1
-      uses: FedericoCarboni/setup-ffmpeg@v1
       uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
       with:
         elixir-version: '1.10.3' # Define the elixir version [required]
