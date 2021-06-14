@@ -130,6 +130,11 @@ defmodule MediaWeb.MediaController do
     render(conn, "medias.json", medias: medias, total: total)
   end
 
+  def content_medias(conn, %{"content_id" => id}) do
+    medias = Context.content_medias(id)
+    render(conn, "medias.json", medias: medias)
+  end
+
   @doc """
   Inserts a `media`
 

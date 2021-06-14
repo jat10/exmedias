@@ -52,5 +52,8 @@ defmodule MediaWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
-  plug MediaWeb.Router
+
+  if Application.get_env(:media, :router),
+    do: :ok,
+    else: plug(MediaWeb.Router)
 end

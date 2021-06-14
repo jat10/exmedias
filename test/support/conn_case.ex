@@ -25,8 +25,6 @@ defmodule MediaWeb.ConnCase do
       import Phoenix.ConnTest
       import MediaWeb.ConnCase
 
-      alias MediaWeb.Router.Helpers, as: Routes
-
       # The default endpoint for testing
       @endpoint MediaWeb.Endpoint
     end

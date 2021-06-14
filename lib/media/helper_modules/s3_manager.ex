@@ -8,6 +8,7 @@ defmodule Media.S3Manager do
 
   def upload_file(filename, path, destination) do
     # File.write!(filename, Base.decode64!(file))
+    ## For testing purposes
     ext =
       filename
       |> Path.extname()
@@ -40,33 +41,43 @@ defmodule Media.S3Manager do
   end
 
   def upload(path, filename) do
-    aws =
-      path
-      |> Upload.stream_file()
-      |> S3.upload(
-        Helpers.aws_bucket_name(),
-        filename,
-        content_type: MIME.from_path(filename)
-      )
-      |> ExAws.request!()
+    if Helpers.check_env() do
+      aws =
+        path
+        |> Upload.stream_file()
+        |> S3.upload(
+          Helpers.aws_bucket_name(),
+          filename,
+          content_type: MIME.from_path(filename)
+        )
+        |> ExAws.request!()
 
-    case aws.status_code do
-      200 ->
-        # File.rm!(filename)
+      case aws.status_code do
+        200 ->
+          # File.rm!(filename)
 
-        %{
-          "CompleteMultipartUploadResult" => %{
-            "Location" => url,
-            "Key" => name,
-            "ETag" => id,
-            "Bucket" => bucket
-          }
-        } = aws.body |> XmlToMap.naive_map()
+          %{
+            "CompleteMultipartUploadResult" => %{
+              "Location" => url,
+              "Key" => name,
+              "ETag" => id,
+              "Bucket" => bucket
+            }
+          } = aws.body |> XmlToMap.naive_map()
 
-        {:ok, %{id: id, filename: name, url: url, bucket: bucket}}
+          {:ok, %{id: id, filename: name, url: url, bucket: bucket}}
 
-      _ ->
-        {:error, "Unable to upload file to amazon"}
+        _ ->
+          {:error, "Unable to upload file to amazon"}
+      end
+    else
+      {:ok,
+       %{
+         id: "fake_file_id",
+         filename: "fake_filename",
+         url: "https://www.fake-url.com",
+         bucket: "fake-bucket"
+       }}
     end
   end
 
@@ -191,12 +202,16 @@ defmodule Media.S3Manager do
   end
 
   defp change_privacy(object_key, acl_permission) do
-    S3.put_object_acl(
-      Application.get_env(:media, :aws_bucket_name),
-      object_key,
-      [{:acl, acl_permission}]
-    )
-    |> ExAws.request()
+    if Helpers.check_env() do
+      S3.put_object_acl(
+        Application.get_env(:media, :aws_bucket_name),
+        object_key,
+        [{:acl, acl_permission}]
+      )
+      |> ExAws.request()
+    else
+      {:ok, :done}
+    end
   end
 
   def read_private_object(credentials, destination) do

@@ -132,8 +132,8 @@ children = [
 
 By adding this, your collection will be setup properly adding the proper collections to your database.
 
-Before running your project perform the following mix commands:
+Before running your project perform the following mix command:
 
-- ``MongoDB`` project: mix media.setup
+- mix media.setup
 
 Now you are all set to start using Media. 🎉
