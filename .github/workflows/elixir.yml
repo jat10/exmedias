@@ -14,9 +14,9 @@ jobs:
 
     steps:
     - name: Install ImageMagick
-      run: apt install imagemagick
+      run: sudo apt install imagemagick
     - name: Install Ffmpeg
-      run: apt install ffmpeg
+      run: sudo apt install ffmpeg
     - uses: actions/checkout@v2
     # with:
       # Not strictly necessary, but it may prevent rate limit
