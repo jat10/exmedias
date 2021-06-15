@@ -506,15 +506,16 @@ defmodule Media.Helpers do
     # ## upload files
     # Enum.each(files_to_upload, &S3Manager.upload_file(&1.filename, &1.path, aws_bucket_name()))
     # ## delete files
+    if Helpers.check_env(),
+      do:
+        Enum.each(files_to_delete, fn
+          %{filename: filename} ->
+            S3Manager.delete_file(filename)
+            S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
 
-    Enum.each(files_to_delete, fn
-      %{filename: filename} ->
-        S3Manager.delete_file(filename)
-        S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
-
-      _video ->
-        :ok
-    end)
+          _video ->
+            :ok
+        end)
 
     files_key = if Map.keys(attrs) |> Enum.any?(&(&1 |> is_atom)), do: :files, else: "files"
     ## we check

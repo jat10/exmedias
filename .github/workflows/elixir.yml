@@ -7,9 +7,8 @@ on:
     branches: [ master, dev ]
 
 jobs:
-  build:
-
-    name: Build and test
+  test:
+    name: test
     runs-on: ubuntu-latest
 
     steps:
@@ -18,11 +17,6 @@ jobs:
     - name: Install Ffmpeg
       run: sudo apt install ffmpeg
     - uses: actions/checkout@v2
-    # with:
-      # Not strictly necessary, but it may prevent rate limit
-      # errors especially on GitHub-hosted macos machines.
-      # token: ${{ secrets.GITHUB_TOKEN }}
-    # id: setup-ffmpeg
     - name: Set up Elixir
       uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
       with:

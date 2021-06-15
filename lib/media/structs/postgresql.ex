@@ -375,7 +375,7 @@ defmodule Media.PostgreSQL do
     def media_used?(id) do
       exists? = from(m in @medias_contents, where: m.media_id == ^id) |> Helpers.repo().exists?()
 
-      case get_media(%{args: id}) do
+      case get_media_by_id(id) do
         {:ok, media} ->
           {media, exists?}
 
