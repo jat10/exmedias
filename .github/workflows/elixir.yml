@@ -13,9 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Install ImageMagick
+      run: apt install imagemagick
+    - name: Install Ffmpeg
+      run: apt install ffmpeg
     - uses: actions/checkout@v2
-    - uses: jruipinto/ImageMagick-action@v1
-    - uses: FedericoCarboni/setup-ffmpeg@v1
     # with:
       # Not strictly necessary, but it may prevent rate limit
       # errors especially on GitHub-hosted macos machines.
