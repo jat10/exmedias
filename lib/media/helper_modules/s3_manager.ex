@@ -41,7 +41,7 @@ defmodule Media.S3Manager do
   end
 
   def upload(path, filename) do
-    if Helpers.check_env() do
+    if Helpers.test_mode?() do
       aws =
         path
         |> Upload.stream_file()
@@ -202,7 +202,7 @@ defmodule Media.S3Manager do
   end
 
   defp change_privacy(object_key, acl_permission) do
-    if Helpers.check_env() do
+    if Helpers.test_mode?() do
       S3.put_object_acl(
         Application.get_env(:media, :aws_bucket_name),
         object_key,

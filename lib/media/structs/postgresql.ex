@@ -129,7 +129,7 @@ defmodule Media.PostgreSQL do
         Helpers.delete_s3_files(media.files)
         delete_media_by_id(media_id)
       else
-        {:error, :not_found, "Media does not exist"} = res ->
+        {:error, :not_found, _} = res ->
           res
 
         {_media, true} ->

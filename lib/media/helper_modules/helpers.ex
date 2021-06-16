@@ -506,7 +506,7 @@ defmodule Media.Helpers do
     # ## upload files
     # Enum.each(files_to_upload, &S3Manager.upload_file(&1.filename, &1.path, aws_bucket_name()))
     # ## delete files
-    if Helpers.check_env(),
+    if Helpers.test_mode?(),
       do:
         Enum.each(files_to_delete, fn
           %{filename: filename} ->
@@ -566,7 +566,7 @@ defmodule Media.Helpers do
 
   ## gets youtube details on the video using the api key and video id
   def youtube_video_details(video_id) do
-    if Helpers.check_env() do
+    if Helpers.test_mode?() do
       endpoint_get_callback(
         "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{env(:youtube_api_key)}&part=contentDetails"
       )
@@ -690,7 +690,7 @@ defmodule Media.Helpers do
   If the test mode is real or the env is not :test it returns true
   false otherwise
   """
-  def check_env do
+  def test_mode? do
     Mix.env() != :test or (Mix.env() == :test && Helpers.env(:test_mode, "real") == "real")
   end
 end
