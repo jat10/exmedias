@@ -3,6 +3,11 @@ defmodule MediaWeb.MediaController do
   The media Controller handles the media endpoints.
 
   Check the routes for mapping to the right controller function.
+
+  Note:
+
+  As Media will have to handle with file submission, thus the user will need supply form-data body in the request. In order to see an example you can check the Postman collection shared at the root of the project. Import the Postman collection to Postman. Add the environment variable `url` that point to your project in `environment` section inside Postman.
+  That's it your postman collection is ready to be used to interact with Media. The body is setup only needs the values to be filled.
   """
   use MediaWeb, :controller
   alias Media.{Context, Helpers}
