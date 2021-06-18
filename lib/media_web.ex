@@ -25,7 +25,6 @@ defmodule MediaWeb do
 
       import Plug.Conn
       import MediaWeb.Gettext
-      alias MediaWeb.Router.Helpers, as: Routes
     end
   end
 
@@ -35,7 +34,7 @@ defmodule MediaWeb do
         root: "lib/media_web/templates",
         layout: {MediaWeb.LayoutView, "app.html"},
         namespace: MediaWeb
-      alias MediaWeb.Router.Helpers
+
       # Import convenience functions from controllers
       import Phoenix.Controller,
         only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
@@ -71,7 +70,6 @@ defmodule MediaWeb do
 
       import MediaWeb.ErrorHelpers
       import MediaWeb.Gettext
-      alias MediaWeb.Router.Helpers, as: Routes
     end
   end
 

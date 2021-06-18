@@ -224,7 +224,7 @@ defmodule MediaWeb.PlatformControllerTest do
 
     post(
       conn,
-      Routes.media_path(conn, :insert_platform),
+      TestHelpers.routes().media_path(conn, :insert_platform),
       attrs
     )
   end
@@ -234,7 +234,7 @@ defmodule MediaWeb.PlatformControllerTest do
 
     post(
       conn |> put_req_header("content-type", "application/json"),
-      Routes.media_path(conn, :list_platforms),
+      TestHelpers.routes().media_path(conn, :list_platforms),
       attrs
     )
   end
@@ -263,7 +263,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_platform, resp["id"])
+        TestHelpers.routes().media_path(conn, :get_platform, resp["id"])
       )
 
     assert response = json_response(conn, 200)
@@ -276,7 +276,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_platform, platform.id)
+        TestHelpers.routes().media_path(conn, :get_platform, platform.id)
       )
 
     assert response = json_response(conn, 200)
@@ -293,7 +293,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_platform, id)
+        TestHelpers.routes().media_path(conn, :get_platform, id)
       )
 
     assert response = json_response(conn, 404)
@@ -310,7 +310,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn1 =
       get(
         conn1,
-        Routes.media_path(conn1, :get_platform, id)
+        TestHelpers.routes().media_path(conn1, :get_platform, id)
       )
 
     assert %{"id" => ^id} = json_response(conn1, 200)
@@ -320,7 +320,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn2 =
       delete(
         conn2,
-        Routes.media_path(conn2, :delete_platform, id)
+        TestHelpers.routes().media_path(conn2, :delete_platform, id)
       )
 
     assert response = json_response(conn2, 200)
@@ -329,7 +329,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn3 =
       get(
         conn3,
-        Routes.media_path(conn3, :get_platform, id)
+        TestHelpers.routes().media_path(conn3, :get_platform, id)
       )
 
     assert response = json_response(conn3, 404)
@@ -341,7 +341,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn =
       delete(
         conn,
-        Routes.media_path(conn, :delete_platform, id)
+        TestHelpers.routes().media_path(conn, :delete_platform, id)
       )
 
     assert response = json_response(conn, 404)
@@ -353,7 +353,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn =
       delete(
         conn,
-        Routes.media_path(conn, :delete_platform, "invalid id")
+        TestHelpers.routes().media_path(conn, :delete_platform, "invalid id")
       )
 
     assert response = json_response(conn, 400)
@@ -371,7 +371,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_platform, id),
+        TestHelpers.routes().media_path(conn1, :update_platform, id),
         @update_attrs
       )
 
@@ -391,7 +391,7 @@ defmodule MediaWeb.PlatformControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_platform, id),
+        TestHelpers.routes().media_path(conn1, :update_platform, id),
         @invalid_attrs
       )
 

@@ -15,4 +15,8 @@ defmodule Media.TestHelpers do
     Application.put_env(:media, :repo, repo)
     Application.put_env(:media, :active_database, db)
   end
+
+  def routes do
+    Module.concat(Application.get_env(:media, :router, MediaWeb.Router), Helpers)
+  end
 end

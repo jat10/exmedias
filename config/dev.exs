@@ -70,7 +70,7 @@ config :ex_aws,
   secret_access_key: "YOUR_AWS_ACCESS_KEY_SECRET"
 
 config :media,
-  youtube_api_key: "YOUTUBE_API_SECRET"
+  youtube_api_key: "YOUR_YOUTUBE_API_KEY"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"

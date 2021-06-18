@@ -100,6 +100,27 @@ defmodule MediaWeb.MediaControllerTest do
   end
 
   describe "PostgreSQL:" do
+    test "GET /content/medias/:id return the media" do
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
+
+      assert test_content_medias(0) |> Enum.count() == 0
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_1 = resp["id"]
+      {:ok, %{id: ^media_id_1} = media} = Media.Context.get_media(media_id_1)
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_2 = resp["id"]
+      {:ok, %{id: ^media_id_2} = media2} = Media.Context.get_media(media_id_2)
+
+      {:ok, content} =
+        Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media, media2]})
+
+      assert test_content_medias(content.id) |> Enum.count() == 2
+    end
+
     test "POST /media creates a media (type image)", %{conn: _conn} do
       TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
@@ -209,6 +230,42 @@ defmodule MediaWeb.MediaControllerTest do
   end
 
   describe "MongoDB:" do
+    test "GET /content/medias/:id return the media" do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+
+      assert test_content_medias("012345678901234568901234") |> Enum.count() == 0
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_1 = resp["id"]
+      {:ok, %{id: ^media_id_1} = media} = Media.Context.get_media(media_id_1)
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_2 = resp["id"]
+      {:ok, %{id: ^media_id_2} = media2} = Media.Context.get_media(media_id_2)
+
+      content_id =
+        Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media, media2]})
+
+      conn1 = build_conn()
+
+      conn1 =
+        put(
+          conn1,
+          TestHelpers.routes().media_path(conn1, :update_media),
+          @update_attrs
+          |> Map.put("id", media_id_2)
+          |> Map.put("files", resp["files"])
+          |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
+        )
+
+      json_response(conn1, 200)
+
+      assert test_content_medias(content_id |> BSON.ObjectId.encode!())
+             |> Enum.count() == 1
+    end
+
     test "POST /media creates a media", %{conn: _conn} do
       test_create_valid_media()
     end
@@ -298,7 +355,7 @@ defmodule MediaWeb.MediaControllerTest do
 
     post(
       conn,
-      Routes.media_path(conn, :insert_media),
+      TestHelpers.routes().media_path(conn, :insert_media),
       attrs |> Map.put("files", files)
     )
   end
@@ -308,7 +365,7 @@ defmodule MediaWeb.MediaControllerTest do
 
     post(
       conn |> put_req_header("content-type", "application/json"),
-      Routes.media_path(conn, :list_medias),
+      TestHelpers.routes().media_path(conn, :list_medias),
       attrs
     )
   end
@@ -368,7 +425,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_media, media["id"])
+        TestHelpers.routes().media_path(conn, :get_media, media["id"])
       )
 
     privacy = attrs |> Map.get("private_status")
@@ -425,7 +482,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_media, id)
+        TestHelpers.routes().media_path(conn, :get_media, id)
       )
 
     assert response = json_response(conn, 404)
@@ -441,7 +498,7 @@ defmodule MediaWeb.MediaControllerTest do
     # conn1 =
     #   get(
     #     conn1,
-    #     Routes.media_path(conn1, :get_media, id)
+    #     TestHelpers.routes().media_path(conn1, :get_media, id)
     #   )
     {:ok, %{id: ^id} = media} = Media.Context.get_media(id)
 
@@ -455,7 +512,7 @@ defmodule MediaWeb.MediaControllerTest do
       conn1 =
         put(
           conn1,
-          Routes.media_path(conn1, :update_media),
+          TestHelpers.routes().media_path(conn1, :update_media),
           @update_attrs
           |> Map.put("id", id)
           |> Map.put("files", resp["files"])
@@ -472,7 +529,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn2 =
       delete(
         conn2,
-        Routes.media_path(conn2, :delete_media, id)
+        TestHelpers.routes().media_path(conn2, :delete_media, id)
       )
 
     assert %{"error" => error} = json_response(conn2, 400)
@@ -481,7 +538,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn3 =
       get(
         conn3,
-        Routes.media_path(conn3, :get_media, id)
+        TestHelpers.routes().media_path(conn3, :get_media, id)
       )
 
     assert json_response(conn3, 200)
@@ -497,7 +554,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       get(
         conn1,
-        Routes.media_path(conn1, :get_media, id)
+        TestHelpers.routes().media_path(conn1, :get_media, id)
       )
 
     assert %{"id" => ^id} = json_response(conn1, 200)
@@ -507,7 +564,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn2 =
       delete(
         conn2,
-        Routes.media_path(conn2, :delete_media, id)
+        TestHelpers.routes().media_path(conn2, :delete_media, id)
       )
 
     assert response = json_response(conn2, 200)
@@ -516,7 +573,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn3 =
       get(
         conn3,
-        Routes.media_path(conn3, :get_media, id)
+        TestHelpers.routes().media_path(conn3, :get_media, id)
       )
 
     assert response = json_response(conn3, 404)
@@ -528,7 +585,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       delete(
         conn,
-        Routes.media_path(conn, :delete_media, id)
+        TestHelpers.routes().media_path(conn, :delete_media, id)
       )
 
     assert response = json_response(conn, 404)
@@ -540,7 +597,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       delete(
         conn,
-        Routes.media_path(conn, :delete_media, "invalid id")
+        TestHelpers.routes().media_path(conn, :delete_media, "invalid id")
       )
 
     assert response = json_response(conn, 400)
@@ -564,7 +621,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_media),
+        TestHelpers.routes().media_path(conn1, :update_media),
         @update_attrs
         |> Map.put("id", id)
         |> Map.put("files", resp["files"])
@@ -610,7 +667,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_media),
+        TestHelpers.routes().media_path(conn1, :update_media),
         @update_attrs
         |> Map.put("id", id)
         |> Map.put("files", new_files)
@@ -660,7 +717,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_media),
+        TestHelpers.routes().media_path(conn1, :update_media),
         @invalid_attrs
         |> Map.put("id", id)
       )
@@ -684,7 +741,7 @@ defmodule MediaWeb.MediaControllerTest do
         })
       )
 
-    media1 = json_response(conn1, 200)
+    assert media1 = json_response(conn1, 200)
 
     conn1 =
       create_media(
@@ -731,6 +788,19 @@ defmodule MediaWeb.MediaControllerTest do
     assert %{"total" => 1} = json_response(conn, 200)
   end
 
+  def test_content_medias(id) do
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        TestHelpers.routes().media_path(conn, :content_medias, id)
+      )
+
+    assert res = json_response(conn, 200)
+    res
+  end
+
   def test_list_medias do
     conn = create_media()
     assert media = json_response(conn, 200)
@@ -767,7 +837,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn |> put_req_header("content-type", "application/json"),
-        Routes.media_path(conn, :count_namespace, "test")
+        TestHelpers.routes().media_path(conn, :count_namespace, "test")
       )
 
     assert %{"total" => 2} = json_response(conn, 200)
@@ -777,7 +847,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn |> put_req_header("content-type", "application/json"),
-        Routes.media_path(conn, :count_namespace, namespace)
+        TestHelpers.routes().media_path(conn, :count_namespace, namespace)
       )
 
     assert %{"total" => 1} = json_response(conn, 200)
@@ -787,7 +857,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn |> put_req_header("content-type", "application/json"),
-        Routes.media_path(conn, :count_namespace, "non-existing-name-space")
+        TestHelpers.routes().media_path(conn, :count_namespace, "non-existing-name-space")
       )
 
     assert %{"total" => 0} = json_response(conn, 200)

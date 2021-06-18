@@ -176,7 +176,6 @@ defmodule Media.MongoDB.Schema do
     provided_fields =
       file
       |> Map.delete(:file)
-      |> Map.delete("file")
       |> Map.keys()
 
     with {:keys, true} <-

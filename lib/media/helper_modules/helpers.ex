@@ -5,6 +5,7 @@ defmodule Media.Helpers do
   alias BSON.ObjectId
   alias Ecto.Changeset
   alias Media.{Helpers, MongoDB, PostgreSQL, S3Manager}
+  require Logger
   @media_collection "media"
   @platform_collection "platform"
   # Returns the router helper module from the configs. Raises if the router isn't specified.
@@ -62,7 +63,7 @@ defmodule Media.Helpers do
   end
 
   def db_struct(args) do
-    struct(active_database(), %{args: args})
+    struct(active_database(), %{args: args |> Helpers.atomize_keys()})
   end
 
   def get_changes(data) do
@@ -458,7 +459,7 @@ defmodule Media.Helpers do
           with false <- new_id in old_ids,
                "image" <- type,
                file <- new_file |> extract_param(:file),
-               %{size: size} <- File.stat!(file.path),
+               {:ok, %{size: size}} <- File.stat(file.path),
                {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url}} <-
                  S3Manager.upload_file(file.filename, file.path, aws_bucket_name()),
                {:ok, _} <- S3Manager.change_object_privacy(file.filename, privacy) do
@@ -479,6 +480,9 @@ defmodule Media.Helpers do
               size: size
             })
           else
+            {:error, %File.Stat{}} ->
+              Logger.error("File not found")
+
             true ->
               files_ids_to_delete = files_ids_to_delete -- [new_id]
               new_file
@@ -502,15 +506,16 @@ defmodule Media.Helpers do
     # ## upload files
     # Enum.each(files_to_upload, &S3Manager.upload_file(&1.filename, &1.path, aws_bucket_name()))
     # ## delete files
+    if Helpers.test_mode?(),
+      do:
+        Enum.each(files_to_delete, fn
+          %{filename: filename} ->
+            S3Manager.delete_file(filename)
+            S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
 
-    Enum.each(files_to_delete, fn
-      %{filename: filename} ->
-        S3Manager.delete_file(filename)
-        S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
-
-      _video ->
-        :ok
-    end)
+          _video ->
+            :ok
+        end)
 
     files_key = if Map.keys(attrs) |> Enum.any?(&(&1 |> is_atom)), do: :files, else: "files"
     ## we check
@@ -561,9 +566,14 @@ defmodule Media.Helpers do
 
   ## gets youtube details on the video using the api key and video id
   def youtube_video_details(video_id) do
-    endpoint_get_callback(
-      "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{env(:youtube_api_key)}&part=contentDetails"
-    )
+    if Helpers.test_mode?() do
+      endpoint_get_callback(
+        "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{env(:youtube_api_key)}&part=contentDetails"
+      )
+    else
+      ## For testing purposes
+      %{"items" => [%{"contentDetails" => %{"duration" => "PT03M30S"}}]}
+    end
   end
 
   def endpoint_get_callback(
@@ -673,5 +683,14 @@ defmodule Media.Helpers do
     )
 
     tmp_path
+  end
+
+  @doc """
+  This functions checks the environment we are in and the test mode.
+  If the test mode is real or the env is not :test it returns true
+  false otherwise
+  """
+  def test_mode? do
+    Mix.env() != :test or (Mix.env() == :test && Helpers.env(:test_mode, "real") == "real")
   end
 end
