@@ -256,7 +256,7 @@ defmodule MediaWeb.MediaControllerTest do
           TestHelpers.routes().media_path(conn1, :update_media),
           @update_attrs
           |> Map.put("id", media_id_2)
-          |> Map.put("files", resp["files"])
+          |> Map.put("files", %{"1" => resp["files"] |> Enum.at(0)})
           |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
         )
 
@@ -515,7 +515,7 @@ defmodule MediaWeb.MediaControllerTest do
           TestHelpers.routes().media_path(conn1, :update_media),
           @update_attrs
           |> Map.put("id", id)
-          |> Map.put("files", resp["files"])
+          |> Map.put("files", %{"1" => resp["files"] |> Enum.at(0)})
           |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
         )
 
@@ -624,7 +624,7 @@ defmodule MediaWeb.MediaControllerTest do
         TestHelpers.routes().media_path(conn1, :update_media),
         @update_attrs
         |> Map.put("id", id)
-        |> Map.put("files", resp["files"])
+        |> Map.put("files", %{"1" => resp["files"] |> Enum.at(0)})
       )
 
     assert resp = json_response(conn1, 200)
@@ -906,8 +906,8 @@ defmodule MediaWeb.MediaControllerTest do
 
     case attrs["type"] do
       "image" ->
-        [
-          %{
+        %{
+          "1" => %{
             "file" => %Plug.Upload{
               path: "test/fixtures/phoenix.png",
               filename: "phoenix.png",
@@ -915,18 +915,18 @@ defmodule MediaWeb.MediaControllerTest do
             },
             "platform_id" => platform.id
           }
-        ]
+        }
 
       "video" ->
-        [
-          %{
+        %{
+          "1" => %{
             "file" => %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"},
             "platform_id" => platform.id
           }
-        ]
+        }
 
       _ ->
-        []
+        %{}
     end
   end
 end

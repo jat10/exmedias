@@ -462,7 +462,7 @@ defmodule Media.Helpers do
                {:ok, %{size: size}} <- File.stat(file.path),
                {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url}} <-
                  S3Manager.upload_file(file.filename, file.path, aws_bucket_name()),
-               {:ok, _} <- S3Manager.change_object_privacy(file.filename, privacy) do
+               {:ok, _} <- S3Manager.change_object_privacy(filename, privacy) do
             ## create a temp directory that will get cleaned up at the end of this request
             tmp_path = create_thumbnail(file.path)
 
