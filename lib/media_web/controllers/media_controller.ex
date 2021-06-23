@@ -3,6 +3,11 @@ defmodule MediaWeb.MediaController do
   The media Controller handles the media endpoints.
 
   Check the routes for mapping to the right controller function.
+
+  Note:
+
+  As Media will have to handle with file submission, thus the user will need supply form-data body in the request. In order to see an example you can check the Postman collection shared at the root of the project. Import the Postman collection to Postman. Add the environment variable `url` that point to your project in `environment` section inside Postman.
+  That's it your postman collection is ready to be used to interact with Media. The body is setup only needs the values to be filled.
   """
   use MediaWeb, :controller
   alias Media.{Context, Helpers}
@@ -163,7 +168,7 @@ defmodule MediaWeb.MediaController do
   ```json
   {
     "author": "some author id",
-      "files": [
+      "files": %{"1"=>
         {
           "file_id": "123123123",
           "filename": "filename_on_s3_image.jpeg",
@@ -183,7 +188,7 @@ defmodule MediaWeb.MediaController do
           "thumbnail_url": "thumbnail_url",
           "url": "url"
         }
-      ],
+      },
       "id": 1075,
       "inserted_at": "2021-05-25T13:07:48",
       "locked_status": "locked",
@@ -195,13 +200,17 @@ defmodule MediaWeb.MediaController do
       "type": "image",
       "updated_at": "2021-05-25T13:07:48"
     }
+  }
   ```
   - Status 400:
   ```json
   {"error": "Author can't be blank"}
   ```
   """
-  def insert_media(conn, args) do
+
+  def insert_media(conn, %{"files" => files} = args) do
+    args = parse_form_data(args)
+
     case Context.insert_media(args |> Helpers.atomize_keys()) do
       {:ok, media} ->
         render(conn, "media.json", media: media)
@@ -227,13 +236,14 @@ defmodule MediaWeb.MediaController do
       "author": "AUTHOR_ID",
       "tags": ["technology"],
       "type": "image",
-      "files":[
+      "files": %{
+        "file1" =>
         {
           "file": file // The file here is uploaded using multi part. (Phoenix will take care to store as ``Plug.Upload`` struct and pass it to the controller)
           "platform_id": 10
         },
         {"file": {"url": "youtube_url"}, "platform_id": 11}
-      ],
+      },
       "locked_status": "locked",
       "private_status": "public",
     }
@@ -283,6 +293,8 @@ defmodule MediaWeb.MediaController do
   The files update is complete so any old files that will be missing in the payload will be deleted. Only the files that are sent will be reachable.
   """
   def update_media(conn, %{"id" => id} = args) do
+    args = parse_form_data(args)
+
     case Context.update_media(args |> Helpers.atomize_keys()) do
       {:ok, media} ->
         render(conn, "media.json", media: media)
@@ -325,4 +337,13 @@ defmodule MediaWeb.MediaController do
     {:ok, %{total: total}} = Context.count_namespace(namespace)
     render(conn, "count.json", total: total)
   end
+
+  defp parse_form_data(%{"files" => nil} = args), do: Map.put(args, "files", [])
+
+  defp parse_form_data(%{"files" => files} = args) when is_map(args) do
+    files = files |> Enum.map(fn {_key, value} -> value end)
+    Map.put(args, "files", files)
+  end
+
+  defp parse_form_data(args), do: args
 end
