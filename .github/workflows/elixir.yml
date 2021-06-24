@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Update apt
-      run: run apt-get update
+      run: sudo apt-get update
     - name: Install ImageMagick
       run: sudo apt install imagemagick
     - name: Install Ffmpeg
