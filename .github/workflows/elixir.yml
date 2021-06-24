@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Update apt
+      run: sudo apt-get update
     - name: Install ImageMagick
       run: sudo apt install imagemagick
     - name: Install Ffmpeg
