@@ -10,10 +10,10 @@ defmodule MediaWeb.PlatformControllerTest do
        %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}
      end},
     {S3Manager, [:passthrough],
-     upload_file: fn file_name, _path, aws_bucket_name ->
+     upload_file: fn file_name, _path ->
        {:ok,
         %{
-          bucket: aws_bucket_name,
+          bucket: Helpers.aws_bucket_name(),
           filename: "#{file_name <> TestHelpers.uuid()}",
           id: "#{TestHelpers.uuid()}",
           url: "some url"

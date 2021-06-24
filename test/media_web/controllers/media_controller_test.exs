@@ -58,10 +58,10 @@ defmodule MediaWeb.MediaControllerTest do
        %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}
      end},
     {S3Manager, [:passthrough],
-     upload_file: fn file_name, _path, aws_bucket_name ->
+     upload_file: fn file_name, _path ->
        {:ok,
         %{
-          bucket: aws_bucket_name,
+          bucket: Helpers.aws_bucket_name(),
           filename: "#{file_name <> TestHelpers.uuid()}",
           id: "#{TestHelpers.uuid()}",
           url: "some url"
@@ -131,6 +131,12 @@ defmodule MediaWeb.MediaControllerTest do
       TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       test_create_valid_media(@valid_attrs |> Map.put("type", "video"))
+    end
+
+    test "POST /media returns error and roll back changes", %{conn: _conn} do
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
+
+      test_media_rollback()
     end
 
     test "POST /media returns error when invalid data (author)", %{conn: _conn} do
@@ -268,6 +274,12 @@ defmodule MediaWeb.MediaControllerTest do
 
     test "POST /media creates a media", %{conn: _conn} do
       test_create_valid_media()
+    end
+
+    test "POST /media returns error and roll back changes", %{conn: _conn} do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+
+      test_media_rollback()
     end
 
     setup _context do
@@ -610,7 +622,7 @@ defmodule MediaWeb.MediaControllerTest do
     assert resp = json_response(conn, 200)
     id = resp["id"]
 
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 1)
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
 
     assert @valid_attrs |> Map.put("id", id) |> Map.put("number_of_contents", 0) ==
@@ -642,7 +654,7 @@ defmodule MediaWeb.MediaControllerTest do
     ## two times due to the fact that we need to create the thumbnail
     ## so basically two calls to insert the media and 0 calls when we
     ## did update with the same files
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 1)
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
   end
 
@@ -653,7 +665,7 @@ defmodule MediaWeb.MediaControllerTest do
     id = resp["id"]
 
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 1)
 
     assert @valid_attrs |> Map.put("id", id) |> Map.put("number_of_contents", 0) ==
              resp |> Map.delete("files")
@@ -693,7 +705,7 @@ defmodule MediaWeb.MediaControllerTest do
     ## two times due to the fact that we need to create the thumbnail
     ## so basically two calls to insert the media and 2 calls when we
     ## did update with different files
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 2)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 2)
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 2)
 
     ## Deleted the files that were initially created
@@ -928,5 +940,44 @@ defmodule MediaWeb.MediaControllerTest do
       _ ->
         %{}
     end
+  end
+
+  def test_media_rollback do
+    ## create a platform
+    platform = platform_fixture(%{"name" => "#{TestHelpers.uuid()}"})
+
+    attrs =
+      @valid_attrs
+      |> Map.put(
+        "files",
+        files = %{
+          "1" => %{
+            "file" => %Plug.Upload{
+              path: "test/fixtures/phoenix.png",
+              filename: "phoenix.png",
+              content_type: "image/png"
+            },
+            "platform_id" => platform.id
+          },
+          "2" => %{
+            "file" => "non_valid_file",
+            "platform_id" => platform.id
+          }
+        }
+      )
+
+    conn = build_conn()
+
+    conn =
+      post(
+        conn,
+        TestHelpers.routes().media_path(conn, :insert_media),
+        attrs |> Map.put("files", files)
+      )
+
+    assert json_response(conn, 422)
+
+    ## assert that the rollback deleted the two initial files that were downloaded
+    assert_called_exactly(S3Manager.delete_file(:_), 2)
   end
 end
