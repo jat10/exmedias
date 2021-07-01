@@ -755,6 +755,6 @@ defmodule Media.Helpers do
   false otherwise
   """
   def test_mode? do
-    Mix.env() != :test or (Mix.env() == :test && Helpers.env(:test_mode, "real") == "real")
+    System.get_env("MEDIA_TEST") != "test" or (System.get_env("MEDIA_TEST") == "test" && Helpers.env(:test_mode, "real") == "real")
   end
 end
