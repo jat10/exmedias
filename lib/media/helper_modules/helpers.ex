@@ -29,13 +29,14 @@ defmodule Media.Helpers do
   def aws_config do
     aws_key = env(:aws_access_key_id)
     aws_secret_key = env(:aws_secret_key)
+    region = env(:aws_region, "us-east-1")
     if is_nil(aws_key) || is_nil(aws_secret_key), do: raise("
     Please make sure to provide a configuration for aws. e.g:
       config :media,
         aws_access_key_id: your_access_key_id,
         aws_secret_key: secret_access_key
     ")
-    [access_key_id: aws_key, secret_access_key: aws_secret_key]
+    [access_key_id: aws_key, secret_access_key: aws_secret_key, region: region]
   end
 
   def active_database do
