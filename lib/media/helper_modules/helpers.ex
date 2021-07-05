@@ -437,8 +437,7 @@ defmodule Media.Helpers do
     do: "The id provided: #{inspect(id)} is not valid. Please provide a valid ID."
 
   def delete_s3_files(files) when is_list(files) do
-    files
-    |> Enum.each(&S3Manager.delete_file(&1 |> Map.get(:filename)))
+    delete_file_and_thumbnail(files)
   end
 
   def delete_s3_files(_files), do: :ok
@@ -523,12 +522,15 @@ defmodule Media.Helpers do
     if Helpers.test_mode?(),
       do:
         Enum.each(files_to_delete, fn
+          %{filename: nil} ->
+            :ok
+
           %{filename: filename} ->
             S3Manager.delete_file(filename)
 
             S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
 
-          _video ->
+          _ ->
             :ok
         end)
   end
