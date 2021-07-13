@@ -3,13 +3,6 @@ defmodule Media.Repo.Migrations.CreateMedia do
 
 
   def change do
-    if Mix.env() == :test do
-      create table(:content) do
-        add(:title, :string)
-
-      timestamps()
-      end
-    end
 
     create table(:media) do
       add(:tags, {:array, :string})
@@ -20,8 +13,12 @@ defmodule Media.Repo.Migrations.CreateMedia do
       add(:files, {:array, :jsonb}) ## mobile or desktop
       add(:locked_status, :string, default: "locked")
       add(:private_status, :string, default: "private")
+      add(:seo_tag, :string)
+      add(:namespace, :string)
 
     timestamps()
     end
+
+    create(index("media", [:namespace]))
   end
 end

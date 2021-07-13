@@ -105,6 +105,7 @@ config :media,
   router: SectionsWeb.Router,
   aws_bucket_name: "eweevtestbucketprivate",
   aws_role_name: "privateBucketRead",
+  aws_region: "us-east-1",
   aws_iam_id: "403016165142"
 ```
 ``active_database``: the database your project is using accepted values are: "mongoDB" or "postgreSQL"
@@ -132,8 +133,8 @@ children = [
 
 By adding this, your collection will be setup properly adding the proper collections to your database.
 
-Before running your project perform the following mix commands:
+Before running your project perform the following mix command:
 
-- ``MongoDB`` project: mix media.setup
+- mix media.setup
 
 Now you are all set to start using Media. 🎉

@@ -11,6 +11,17 @@ defmodule Media.MongoDB do
     alias Media.MongoDB.Schema, as: MediaSchema
     alias Media.Platforms.Platform
 
+    def content_medias(%{args: id}) do
+      if Helpers.valid_object_id?(id) do
+        %{result: result} =
+          list_medias(%MongoDB{args: %{filters: [%{key: "contents_used", value: id}]}})
+
+        result
+      else
+        {:error, "Invalid id"}
+      end
+    end
+
     def count_namespace(%{args: namespace}) do
       {:ok, total} = Mongo.count(:mongo, @media_collection, %{namespace: namespace})
       {:ok, %{total: total}}

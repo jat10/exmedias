@@ -5,6 +5,7 @@ defmodule Media.Helpers do
   alias BSON.ObjectId
   alias Ecto.Changeset
   alias Media.{Helpers, MongoDB, PostgreSQL, S3Manager}
+  require Logger
   @media_collection "media"
   @platform_collection "platform"
   # Returns the router helper module from the configs. Raises if the router isn't specified.
@@ -23,6 +24,19 @@ defmodule Media.Helpers do
       nil -> default
       value -> value
     end
+  end
+
+  def aws_config do
+    aws_key = env(:aws_access_key_id)
+    aws_secret_key = env(:aws_secret_key)
+    region = env(:aws_region, "us-east-1")
+    if is_nil(aws_key) || is_nil(aws_secret_key), do: raise("
+    Please make sure to provide a configuration for aws. e.g:
+      config :media,
+        aws_access_key_id: your_access_key_id,
+        aws_secret_key: secret_access_key
+    ")
+    [access_key_id: aws_key, secret_access_key: aws_secret_key, region: region]
   end
 
   def active_database do
@@ -62,7 +76,7 @@ defmodule Media.Helpers do
   end
 
   def db_struct(args) do
-    struct(active_database(), %{args: args})
+    struct(active_database(), %{args: args |> Helpers.atomize_keys()})
   end
 
   def get_changes(data) do
@@ -424,8 +438,7 @@ defmodule Media.Helpers do
     do: "The id provided: #{inspect(id)} is not valid. Please provide a valid ID."
 
   def delete_s3_files(files) when is_list(files) do
-    files
-    |> Enum.each(&S3Manager.delete_file(&1 |> Map.get(:filename)))
+    delete_file_and_thumbnail(files)
   end
 
   def delete_s3_files(_files), do: :ok
@@ -449,49 +462,30 @@ defmodule Media.Helpers do
 
     old_ids = old_files |> Enum.map(&Map.get(&1, :file_id))
 
-    {files_to_persist, ids_to_delete} =
-      Enum.reduce(new_files, {[], old_ids}, fn new_file,
-                                               {files_to_persist, files_ids_to_delete} ->
-        new_id = new_file |> Map.get(:file_id, -1)
+    case files_transaction(new_files, old_ids, %{privacy: privacy, type: type}) do
+      {:ok, result} ->
+        ## get new files and their ids
+        new_files = result |> Enum.map(fn file -> file end)
+        new_files_ids = new_files |> Enum.map(& &1.file_id)
 
-        new_file =
-          with false <- new_id in old_ids,
-               "image" <- type,
-               file <- new_file |> extract_param(:file),
-               %{size: size} <- File.stat!(file.path),
-               {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url}} <-
-                 S3Manager.upload_file(file.filename, file.path, aws_bucket_name()),
-               {:ok, _} <- S3Manager.change_object_privacy(file.filename, privacy) do
-            ## create a temp directory that will get cleaned up at the end of this request
-            tmp_path = create_thumbnail(file.path)
+        ## delete unused files
+        Enum.filter(old_files, &(Map.get(&1, :file_id) not in new_files_ids))
+        |> delete_file_and_thumbnail()
 
-            {:ok, %{filename: _thumbnail_filename, url: thumbnail_url}} =
-              S3Manager.upload_thumbnail(filename, tmp_path)
+        # files_key = if Map.keys(attrs) |> Enum.any?(&(&1 |> is_atom)), do: :files, else: "files"
+        ## we check
+        attrs =
+          attrs
+          |> Map.put(
+            :files,
+            new_files
+          )
 
-            new_file
-            |> Map.delete(:file)
-            |> Map.merge(%{
-              filename: filename,
-              thumbnail_url: thumbnail_url,
-              file_id: file_id,
-              url: url,
-              type: file.content_type,
-              size: size
-            })
-          else
-            true ->
-              files_ids_to_delete = files_ids_to_delete -- [new_id]
-              new_file
+        {changeset, attrs}
 
-            "video" ->
-              handle_youtube_video(new_file)
-          end
-          |> Helpers.atomize_keys()
-
-        {files_to_persist ++ [new_file], files_ids_to_delete}
-      end)
-
-    files_to_delete = Enum.filter(old_files, &(Map.get(&1, :file_id) in ids_to_delete))
+      {:error, error} ->
+        {changeset |> add_error(:files, error), attrs |> Map.put(:files, [])}
+    end
 
     ## Check which files are removed
     ## if a file is removed deleted from S3
@@ -503,28 +497,113 @@ defmodule Media.Helpers do
     # Enum.each(files_to_upload, &S3Manager.upload_file(&1.filename, &1.path, aws_bucket_name()))
     # ## delete files
 
-    Enum.each(files_to_delete, fn
-      %{filename: filename} ->
-        S3Manager.delete_file(filename)
-        S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
-
-      _video ->
-        :ok
-    end)
-
-    files_key = if Map.keys(attrs) |> Enum.any?(&(&1 |> is_atom)), do: :files, else: "files"
-    ## we check
-    attrs =
-      attrs
-      |> Map.put(
-        files_key,
-        files_to_persist
-      )
-
-    {changeset, attrs}
     ## return new files
     # Enum.each(files_to_delete, fn %{filename: filename} -> S3Manager.delete_file(filename), _video -> :ok end)
   end
+
+  def rollback_changes(files) do
+    ## Revert uploaded files
+    delete_files(files)
+    {:error, "Error when uploading files"}
+  end
+
+  def delete_files(files_to_delete) do
+    if Helpers.test_mode?(),
+      do:
+        Enum.each(files_to_delete, fn
+          %{filename: filename} ->
+            S3Manager.delete_file(filename)
+
+          _video ->
+            :ok
+        end)
+  end
+
+  def delete_file_and_thumbnail(files_to_delete) do
+    if Helpers.test_mode?(),
+      do:
+        Enum.each(files_to_delete, fn
+          %{filename: nil} ->
+            :ok
+
+          %{filename: filename} ->
+            S3Manager.delete_file(filename)
+
+            S3Manager.delete_file(S3Manager.thumbnail_filename(filename))
+
+          _ ->
+            :ok
+        end)
+  end
+
+  def files_transaction(new_files, old_ids, %{type: type, privacy: privacy}) do
+    Enum.reduce(new_files, {[], [], true, ""}, fn
+      _file, {files, changes, false, error} = acc ->
+        {files, changes, false, error}
+
+      file, {files, changes, true, error} ->
+        case upload_file(file, type, privacy) do
+          {:ok, new_file, new_changes} ->
+            {files ++ [new_file], changes ++ new_changes, true, ""}
+
+          {:error, error, new_changes} ->
+            rollback_changes(changes)
+            {files, changes, false, error}
+        end
+    end)
+    |> case do
+      {_files, _changes, false, error} ->
+        {:error, "Something went wrong when uploading your files. Reason: #{error}"}
+
+      {files, changes, true, _error} ->
+        {:ok, files}
+    end
+  end
+
+  def upload_file(%{file_id: _file_id} = file, _type, _privacy), do: {:ok, file, []}
+
+  def upload_file(
+        %{file: %Plug.Upload{path: path, content_type: "image/" <> _imagetype} = file} = new_file,
+        "image",
+        privacy
+      ) do
+    with {:ok, %{size: size}} <- File.stat(path),
+         {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url} = base_file} <-
+           S3Manager.upload_file(file.filename, file.path),
+         {:ok, _} <-
+           S3Manager.change_object_privacy(filename, privacy),
+         ## create a temp directory that will get cleaned up at the end of this request
+         tmp_path <- create_thumbnail(file.path),
+         {_basefile, {:ok, %{filename: thumbnail_filename, url: thumbnail_url} = thumbnail_file}} <-
+           {base_file, S3Manager.upload_thumbnail(filename, tmp_path)},
+         {:ok, _} <-
+           S3Manager.change_object_privacy(thumbnail_filename, privacy) do
+      {:ok,
+       new_file
+       |> Map.delete(:file)
+       |> Map.merge(%{
+         filename: filename,
+         thumbnail_url: thumbnail_url,
+         file_id: file_id,
+         url: url,
+         type: file.content_type,
+         size: size
+       }), [base_file, thumbnail_file]}
+    else
+      {file, {:error, error}} -> {:error, error, [file]}
+      {:error, err} -> {:error, err, []}
+    end
+  end
+
+  def upload_file(%{file: %{url: _url}} = file, "video", _privacy) do
+    handle_youtube_video(file)
+  end
+
+  def upload_file(_, _, _privacy),
+    do:
+      {:error,
+       "The file structure/type you provided is not supported. Hint: Make sure to provide a new file upload or an existing file URL.",
+       []}
 
   def youtube_endpoint do
     "https://www.googleapis.com/youtube/v3"
@@ -561,9 +640,14 @@ defmodule Media.Helpers do
 
   ## gets youtube details on the video using the api key and video id
   def youtube_video_details(video_id) do
-    endpoint_get_callback(
-      "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{env(:youtube_api_key)}&part=contentDetails"
-    )
+    if Helpers.test_mode?() do
+      endpoint_get_callback(
+        "#{youtube_endpoint()}/videos?id=#{video_id}&key=#{env(:youtube_api_key)}&part=contentDetails"
+      )
+    else
+      ## For testing purposes
+      %{"items" => [%{"contentDetails" => %{"duration" => "PT03M30S"}}]}
+    end
   end
 
   def endpoint_get_callback(
@@ -593,7 +677,8 @@ defmodule Media.Helpers do
     video_file = extract_param(file, :file)
     url = extract_param(video_file, :url)
 
-    with {:ok, %{"id" => video_id}} <- get_youtube_id(url),
+    with true <- is_binary(url),
+         {:ok, %{"id" => video_id}} <- get_youtube_id(url),
          %{"items" => items} <-
            __MODULE__.youtube_video_details(url) do
       thumbnail_url = "https://img.youtube.com/vi/#{video_id}/default.jpg"
@@ -608,22 +693,25 @@ defmodule Media.Helpers do
         |> Map.get("duration", "PT0M0S")
         |> format_duration()
 
-      file
-      |> atomize_keys()
-      |> Map.merge(%{
-        duration: duration,
-        file_id: video_id,
-        url: url,
-        type: "mp4",
-        thumbnail_url: thumbnail_url
-      })
-      |> Map.delete(:file)
+      {:ok,
+       file
+       |> Map.merge(%{
+         duration: duration,
+         file_id: video_id,
+         url: url,
+         type: "mp4",
+         thumbnail_url: thumbnail_url
+       })
+       |> Map.delete(:file), []}
     else
+      false ->
+        {:error, "Please provide a valid video url", []}
+
       {:error, :not_youtube_url} ->
-        {:error, "This video is not a youtube video"}
+        {:error, "This video is not a youtube video", []}
 
       {:error, _} ->
-        {:error, "Could not fetch youtube video details"}
+        {:error, "Could not fetch youtube video details", []}
     end
   end
 
@@ -648,7 +736,7 @@ defmodule Media.Helpers do
       String.to_integer(Enum.at(list_of_time, 2))
   end
 
-  def check_files_privacy(%{files: files, private_status: "public"} = media), do: media
+  def check_files_privacy(%{files: _files, private_status: "public"} = media), do: media
 
   def check_files_privacy(%{files: files, private_status: "private"} = media) do
     Map.put(media, :files, files |> Enum.map(&add_privacy_data(&1)))
@@ -673,5 +761,15 @@ defmodule Media.Helpers do
     )
 
     tmp_path
+  end
+
+  @doc """
+  This functions checks the environment we are in and the test mode.
+  If the test mode is real or the env is not :test it returns true
+  false otherwise
+  """
+  def test_mode? do
+    System.get_env("MEDIA_TEST") != "test" or
+      (System.get_env("MEDIA_TEST") == "test" && Helpers.env(:test_mode, "real") == "real")
   end
 end

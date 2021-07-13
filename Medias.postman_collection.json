@@ -1,0 +1,71 @@
+{
+	"info": {
+		"_postman_id": "051920ce-6252-422b-97e8-c15e37ed5695",
+		"name": "Medias",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create a media",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "author",
+							"value": "zaher",
+							"type": "text"
+						},
+						{
+							"key": "files[1][platform_id]",
+							"value": "2",
+							"type": "text"
+						},
+						{
+							"key": "files[1][file]",
+							"type": "file",
+							"src": "/Users/z.hassan/Downloads/Frame 2.png"
+						},
+						{
+							"key": "files[2][platform_id]",
+							"value": "1",
+							"type": "text"
+						},
+						{
+							"key": "files[2][file]",
+							"type": "file",
+							"src": "/Users/z.hassan/Downloads/play_button.png"
+						},
+						{
+							"key": "type",
+							"value": "image",
+							"type": "text"
+						},
+						{
+							"key": "private_status",
+							"value": "public",
+							"type": "text"
+						},
+						{
+							"key": "locked_status",
+							"value": "unlocked",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{url}}/media",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"media"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

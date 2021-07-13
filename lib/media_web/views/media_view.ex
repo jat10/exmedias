@@ -78,6 +78,10 @@ defmodule MediaWeb.MediaView do
     %{result: render_many(medias, MediaView, "media.json"), total: total}
   end
 
+  def render("medias.json", %{medias: medias}) do
+    render_many(medias, MediaView, "media.json")
+  end
+
   def render("count.json", %{total: total}) do
     %{total: total}
   end

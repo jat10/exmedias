@@ -124,6 +124,13 @@ defmodule Media.Context do
   end
 
   @doc """
+
+  """
+  def content_medias(args \\ %{}) do
+    DB.content_medias(Helpers.db_struct(args))
+  end
+
+  @doc """
   Deletes a media
 
   You can delete a `media` by its id

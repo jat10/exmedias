@@ -58,10 +58,10 @@ defmodule MediaWeb.MediaControllerTest do
        %{"items" => [%{"contentDetails" => %{"duration" => "PT4M30S"}}]}
      end},
     {S3Manager, [:passthrough],
-     upload_file: fn file_name, _path, aws_bucket_name ->
+     upload_file: fn file_name, _path ->
        {:ok,
         %{
-          bucket: aws_bucket_name,
+          bucket: Helpers.aws_bucket_name(),
           filename: "#{file_name <> TestHelpers.uuid()}",
           id: "#{TestHelpers.uuid()}",
           url: "some url"
@@ -100,6 +100,27 @@ defmodule MediaWeb.MediaControllerTest do
   end
 
   describe "PostgreSQL:" do
+    test "GET /content/medias/:id return the media" do
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
+
+      assert test_content_medias(0) |> Enum.count() == 0
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_1 = resp["id"]
+      {:ok, %{id: ^media_id_1} = media} = Media.Context.get_media(media_id_1)
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_2 = resp["id"]
+      {:ok, %{id: ^media_id_2} = media2} = Media.Context.get_media(media_id_2)
+
+      {:ok, content} =
+        Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media, media2]})
+
+      assert test_content_medias(content.id) |> Enum.count() == 2
+    end
+
     test "POST /media creates a media (type image)", %{conn: _conn} do
       TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
@@ -110,6 +131,12 @@ defmodule MediaWeb.MediaControllerTest do
       TestHelpers.set_repo(Media.Repo, "postgreSQL")
 
       test_create_valid_media(@valid_attrs |> Map.put("type", "video"))
+    end
+
+    test "POST /media returns error and roll back changes", %{conn: _conn} do
+      TestHelpers.set_repo(Media.Repo, "postgreSQL")
+
+      test_media_rollback()
     end
 
     test "POST /media returns error when invalid data (author)", %{conn: _conn} do
@@ -209,8 +236,50 @@ defmodule MediaWeb.MediaControllerTest do
   end
 
   describe "MongoDB:" do
+    test "GET /content/medias/:id return the media" do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+
+      assert test_content_medias("012345678901234568901234") |> Enum.count() == 0
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_1 = resp["id"]
+      {:ok, %{id: ^media_id_1} = media} = Media.Context.get_media(media_id_1)
+      conn = create_media()
+
+      assert resp = json_response(conn, 200)
+      media_id_2 = resp["id"]
+      {:ok, %{id: ^media_id_2} = media2} = Media.Context.get_media(media_id_2)
+
+      content_id =
+        Contents.create_content(%{title: "content#{TestHelpers.uuid()}", medias: [media, media2]})
+
+      conn1 = build_conn()
+
+      conn1 =
+        put(
+          conn1,
+          TestHelpers.routes().media_path(conn1, :update_media),
+          @update_attrs
+          |> Map.put("id", media_id_2)
+          |> Map.put("files", %{"1" => resp["files"] |> Enum.at(0)})
+          |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
+        )
+
+      json_response(conn1, 200)
+
+      assert test_content_medias(content_id |> BSON.ObjectId.encode!())
+             |> Enum.count() == 1
+    end
+
     test "POST /media creates a media", %{conn: _conn} do
       test_create_valid_media()
+    end
+
+    test "POST /media returns error and roll back changes", %{conn: _conn} do
+      TestHelpers.set_repo(:mongo, "mongoDB")
+
+      test_media_rollback()
     end
 
     setup _context do
@@ -298,7 +367,7 @@ defmodule MediaWeb.MediaControllerTest do
 
     post(
       conn,
-      Routes.media_path(conn, :insert_media),
+      TestHelpers.routes().media_path(conn, :insert_media),
       attrs |> Map.put("files", files)
     )
   end
@@ -308,7 +377,7 @@ defmodule MediaWeb.MediaControllerTest do
 
     post(
       conn |> put_req_header("content-type", "application/json"),
-      Routes.media_path(conn, :list_medias),
+      TestHelpers.routes().media_path(conn, :list_medias),
       attrs
     )
   end
@@ -368,7 +437,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_media, media["id"])
+        TestHelpers.routes().media_path(conn, :get_media, media["id"])
       )
 
     privacy = attrs |> Map.get("private_status")
@@ -392,7 +461,7 @@ defmodule MediaWeb.MediaControllerTest do
                  "platform_id" => _1610,
                  "size" => _13900,
                  "type" => "image/png",
-                 "thumbnail_url" => thumbnail_url,
+                 "thumbnail_url" => _thumbnail_url,
                  "url" => url
                } = file
              ],
@@ -425,10 +494,10 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn,
-        Routes.media_path(conn, :get_media, id)
+        TestHelpers.routes().media_path(conn, :get_media, id)
       )
 
-    assert response = json_response(conn, 404)
+    assert json_response(conn, 404)
   end
 
   def test_delete_media_used do
@@ -441,7 +510,7 @@ defmodule MediaWeb.MediaControllerTest do
     # conn1 =
     #   get(
     #     conn1,
-    #     Routes.media_path(conn1, :get_media, id)
+    #     TestHelpers.routes().media_path(conn1, :get_media, id)
     #   )
     {:ok, %{id: ^id} = media} = Media.Context.get_media(id)
 
@@ -455,10 +524,10 @@ defmodule MediaWeb.MediaControllerTest do
       conn1 =
         put(
           conn1,
-          Routes.media_path(conn1, :update_media),
+          TestHelpers.routes().media_path(conn1, :update_media),
           @update_attrs
           |> Map.put("id", id)
-          |> Map.put("files", resp["files"])
+          |> Map.put("files", %{"1" => resp["files"] |> Enum.at(0)})
           |> Map.put("contents_used", [content_id |> BSON.ObjectId.encode!()])
         )
 
@@ -472,7 +541,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn2 =
       delete(
         conn2,
-        Routes.media_path(conn2, :delete_media, id)
+        TestHelpers.routes().media_path(conn2, :delete_media, id)
       )
 
     assert %{"error" => error} = json_response(conn2, 400)
@@ -481,7 +550,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn3 =
       get(
         conn3,
-        Routes.media_path(conn3, :get_media, id)
+        TestHelpers.routes().media_path(conn3, :get_media, id)
       )
 
     assert json_response(conn3, 200)
@@ -497,7 +566,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       get(
         conn1,
-        Routes.media_path(conn1, :get_media, id)
+        TestHelpers.routes().media_path(conn1, :get_media, id)
       )
 
     assert %{"id" => ^id} = json_response(conn1, 200)
@@ -507,7 +576,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn2 =
       delete(
         conn2,
-        Routes.media_path(conn2, :delete_media, id)
+        TestHelpers.routes().media_path(conn2, :delete_media, id)
       )
 
     assert response = json_response(conn2, 200)
@@ -516,10 +585,10 @@ defmodule MediaWeb.MediaControllerTest do
     conn3 =
       get(
         conn3,
-        Routes.media_path(conn3, :get_media, id)
+        TestHelpers.routes().media_path(conn3, :get_media, id)
       )
 
-    assert response = json_response(conn3, 404)
+    assert json_response(conn3, 404)
   end
 
   def test_delete_nonexisting_media(id) do
@@ -528,10 +597,10 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       delete(
         conn,
-        Routes.media_path(conn, :delete_media, id)
+        TestHelpers.routes().media_path(conn, :delete_media, id)
       )
 
-    assert response = json_response(conn, 404)
+    assert json_response(conn, 404)
   end
 
   def test_delete_invalid_id do
@@ -540,10 +609,10 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       delete(
         conn,
-        Routes.media_path(conn, :delete_media, "invalid id")
+        TestHelpers.routes().media_path(conn, :delete_media, "invalid id")
       )
 
-    assert response = json_response(conn, 400)
+    assert json_response(conn, 400)
   end
 
   ## This tests the updates without changing the files
@@ -553,7 +622,7 @@ defmodule MediaWeb.MediaControllerTest do
     assert resp = json_response(conn, 200)
     id = resp["id"]
 
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 1)
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
 
     assert @valid_attrs |> Map.put("id", id) |> Map.put("number_of_contents", 0) ==
@@ -564,10 +633,10 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_media),
+        TestHelpers.routes().media_path(conn1, :update_media),
         @update_attrs
         |> Map.put("id", id)
-        |> Map.put("files", resp["files"])
+        |> Map.put("files", %{"1" => resp["files"] |> Enum.at(0)})
       )
 
     assert resp = json_response(conn1, 200)
@@ -585,7 +654,7 @@ defmodule MediaWeb.MediaControllerTest do
     ## two times due to the fact that we need to create the thumbnail
     ## so basically two calls to insert the media and 0 calls when we
     ## did update with the same files
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 1)
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
   end
 
@@ -596,7 +665,7 @@ defmodule MediaWeb.MediaControllerTest do
     id = resp["id"]
 
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 1)
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 1)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 1)
 
     assert @valid_attrs |> Map.put("id", id) |> Map.put("number_of_contents", 0) ==
              resp |> Map.delete("files")
@@ -610,7 +679,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_media),
+        TestHelpers.routes().media_path(conn1, :update_media),
         @update_attrs
         |> Map.put("id", id)
         |> Map.put("files", new_files)
@@ -636,7 +705,7 @@ defmodule MediaWeb.MediaControllerTest do
     ## two times due to the fact that we need to create the thumbnail
     ## so basically two calls to insert the media and 2 calls when we
     ## did update with different files
-    assert_called_exactly(S3Manager.upload_file(:_, :_, :_), 2)
+    assert_called_exactly(S3Manager.upload_file(:_, :_), 2)
     assert_called_exactly(S3Manager.upload_thumbnail(:_, :_), 2)
 
     ## Deleted the files that were initially created
@@ -653,19 +722,19 @@ defmodule MediaWeb.MediaControllerTest do
            |> Map.put("id", id)
            |> Map.put("number_of_contents", 0) == resp
 
-    assert resp = json_response(conn, 200)
+    assert json_response(conn, 200)
 
     conn1 = build_conn()
 
     conn1 =
       put(
         conn1,
-        Routes.media_path(conn1, :update_media),
+        TestHelpers.routes().media_path(conn1, :update_media),
         @invalid_attrs
         |> Map.put("id", id)
       )
 
-    assert response = json_response(conn1, 422)
+    assert json_response(conn1, 422)
   end
 
   def test_medias_filtered do
@@ -684,7 +753,7 @@ defmodule MediaWeb.MediaControllerTest do
         })
       )
 
-    media1 = json_response(conn1, 200)
+    assert media1 = json_response(conn1, 200)
 
     conn1 =
       create_media(
@@ -731,9 +800,22 @@ defmodule MediaWeb.MediaControllerTest do
     assert %{"total" => 1} = json_response(conn, 200)
   end
 
+  def test_content_medias(id) do
+    conn = build_conn()
+
+    conn =
+      get(
+        conn |> put_req_header("content-type", "application/json"),
+        TestHelpers.routes().media_path(conn, :content_medias, id)
+      )
+
+    assert res = json_response(conn, 200)
+    res
+  end
+
   def test_list_medias do
     conn = create_media()
-    assert media = json_response(conn, 200)
+    assert json_response(conn, 200)
 
     conn = list_medias()
 
@@ -767,7 +849,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn |> put_req_header("content-type", "application/json"),
-        Routes.media_path(conn, :count_namespace, "test")
+        TestHelpers.routes().media_path(conn, :count_namespace, "test")
       )
 
     assert %{"total" => 2} = json_response(conn, 200)
@@ -777,7 +859,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn |> put_req_header("content-type", "application/json"),
-        Routes.media_path(conn, :count_namespace, namespace)
+        TestHelpers.routes().media_path(conn, :count_namespace, namespace)
       )
 
     assert %{"total" => 1} = json_response(conn, 200)
@@ -787,7 +869,7 @@ defmodule MediaWeb.MediaControllerTest do
     conn =
       get(
         conn |> put_req_header("content-type", "application/json"),
-        Routes.media_path(conn, :count_namespace, "non-existing-name-space")
+        TestHelpers.routes().media_path(conn, :count_namespace, "non-existing-name-space")
       )
 
     assert %{"total" => 0} = json_response(conn, 200)
@@ -836,8 +918,8 @@ defmodule MediaWeb.MediaControllerTest do
 
     case attrs["type"] do
       "image" ->
-        [
-          %{
+        %{
+          "1" => %{
             "file" => %Plug.Upload{
               path: "test/fixtures/phoenix.png",
               filename: "phoenix.png",
@@ -845,18 +927,57 @@ defmodule MediaWeb.MediaControllerTest do
             },
             "platform_id" => platform.id
           }
-        ]
+        }
 
       "video" ->
-        [
-          %{
+        %{
+          "1" => %{
             "file" => %{url: "https://www.youtube.com/watch?v=3HkggxR_kvE"},
             "platform_id" => platform.id
           }
-        ]
+        }
 
       _ ->
-        []
+        %{}
     end
+  end
+
+  def test_media_rollback do
+    ## create a platform
+    platform = platform_fixture(%{"name" => "#{TestHelpers.uuid()}"})
+
+    attrs =
+      @valid_attrs
+      |> Map.put(
+        "files",
+        files = %{
+          "1" => %{
+            "file" => %Plug.Upload{
+              path: "test/fixtures/phoenix.png",
+              filename: "phoenix.png",
+              content_type: "image/png"
+            },
+            "platform_id" => platform.id
+          },
+          "2" => %{
+            "file" => "non_valid_file",
+            "platform_id" => platform.id
+          }
+        }
+      )
+
+    conn = build_conn()
+
+    conn =
+      post(
+        conn,
+        TestHelpers.routes().media_path(conn, :insert_media),
+        attrs |> Map.put("files", files)
+      )
+
+    assert json_response(conn, 422)
+
+    ## assert that the rollback deleted the two initial files that were downloaded
+    assert_called_exactly(S3Manager.delete_file(:_), 2)
   end
 end

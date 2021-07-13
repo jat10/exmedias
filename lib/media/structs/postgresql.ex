@@ -11,10 +11,32 @@ defmodule Media.PostgreSQL do
     The PostgreSQL context.
     """
 
+    @medias_contents "medias_contents"
     alias Media.{Helpers, Platforms}
     alias Media.Platforms.Platform
     alias Media.PostgreSQL.Schema, as: MediaSchema
-    import Ecto.Query, warn: false
+    import Ecto.Query, warn: true
+
+    def content_medias(%{args: id}) when is_integer(id) do
+      query_content_medias(id)
+    end
+
+    def content_medias(%{args: id}) when is_binary(id) do
+      case Integer.parse(id) do
+        :error ->
+          {:error, "invalid_id"}
+
+        {id, _} ->
+          query_content_medias(id)
+      end
+    end
+
+    def query_content_medias(id) do
+      from(c in "medias_contents")
+      |> join(:inner, [c], m in MediaSchema, on: m.id == c.media_id and c.content_id == ^id)
+      |> select([c, m], m)
+      |> Helpers.repo().all()
+    end
 
     def count_namespace(%{args: namespace}) do
       res =
@@ -54,7 +76,6 @@ defmodule Media.PostgreSQL do
         [%{}, ...]
 
     """
-
     def list_medias(%{args: args}) do
       case args |> Helpers.build_params() do
         {:error, error} ->
@@ -108,11 +129,11 @@ defmodule Media.PostgreSQL do
         Helpers.delete_s3_files(media.files)
         delete_media_by_id(media_id)
       else
-        {:error, :not_found, "Media does not exist"} = res ->
+        {:error, :not_found, _} = res ->
           res
 
         {_media, true} ->
-          {:error, "The platform with ID #{media_id} is used by medias, It cannot be deleted"}
+          {:error, "The media with ID #{media_id} is used by content, It cannot be deleted"}
 
         {false, -1} ->
           {:error, Helpers.id_error_message(media_id)}
@@ -352,9 +373,9 @@ defmodule Media.PostgreSQL do
     end
 
     def media_used?(id) do
-      exists? = from(m in "medias_contents", where: m.media_id == ^id) |> Helpers.repo().exists?()
+      exists? = from(m in @medias_contents, where: m.media_id == ^id) |> Helpers.repo().exists?()
 
-      case get_media(%{args: id}) do
+      case get_media_by_id(id) do
         {:ok, media} ->
           {media, exists?}
 

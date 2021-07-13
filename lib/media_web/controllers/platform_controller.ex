@@ -1,7 +1,7 @@
 defmodule MediaWeb.PlatformController do
   @moduledoc false
   use MediaWeb, :controller
-  alias Media.{Context, Helpers}
+  alias Media.Context
   action_fallback(MediaWeb.FallbackController)
 
   def get_platform(conn, %{"id" => id}) do
