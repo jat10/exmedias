@@ -133,7 +133,7 @@ defmodule Media.PostgreSQL do
           res
 
         {_media, true} ->
-          {:error, "The platform with ID #{media_id} is used by medias, It cannot be deleted"}
+          {:error, "The media with ID #{media_id} is used by content, It cannot be deleted"}
 
         {false, -1} ->
           {:error, Helpers.id_error_message(media_id)}

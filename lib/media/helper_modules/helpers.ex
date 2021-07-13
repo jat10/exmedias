@@ -562,7 +562,11 @@ defmodule Media.Helpers do
 
   def upload_file(%{file_id: _file_id} = file, _type, _privacy), do: {:ok, file, []}
 
-  def upload_file(%{file: %Plug.Upload{path: path} = file} = new_file, "image", privacy) do
+  def upload_file(
+        %{file: %Plug.Upload{path: path, content_type: "image/" <> _imagetype} = file} = new_file,
+        "image",
+        privacy
+      ) do
     with {:ok, %{size: size}} <- File.stat(path),
          {:ok, %{bucket: _bucket, filename: filename, id: file_id, url: url} = base_file} <-
            S3Manager.upload_file(file.filename, file.path),
@@ -596,7 +600,10 @@ defmodule Media.Helpers do
   end
 
   def upload_file(_, _, _privacy),
-    do: {:error, "The file structure you provided is not supported", []}
+    do:
+      {:error,
+       "The file structure/type you provided is not supported. Hint: Make sure to provide a new file upload or an existing file URL.",
+       []}
 
   def youtube_endpoint do
     "https://www.googleapis.com/youtube/v3"
@@ -670,7 +677,8 @@ defmodule Media.Helpers do
     video_file = extract_param(file, :file)
     url = extract_param(video_file, :url)
 
-    with {:ok, %{"id" => video_id}} <- get_youtube_id(url),
+    with true <- is_binary(url),
+         {:ok, %{"id" => video_id}} <- get_youtube_id(url),
          %{"items" => items} <-
            __MODULE__.youtube_video_details(url) do
       thumbnail_url = "https://img.youtube.com/vi/#{video_id}/default.jpg"
@@ -696,6 +704,9 @@ defmodule Media.Helpers do
        })
        |> Map.delete(:file), []}
     else
+      false ->
+        {:error, "Please provide a valid video url", []}
+
       {:error, :not_youtube_url} ->
         {:error, "This video is not a youtube video", []}
 
@@ -758,6 +769,7 @@ defmodule Media.Helpers do
   false otherwise
   """
   def test_mode? do
-    System.get_env("MEDIA_TEST") != "test" or (System.get_env("MEDIA_TEST") == "test" && Helpers.env(:test_mode, "real") == "real")
+    System.get_env("MEDIA_TEST") != "test" or
+      (System.get_env("MEDIA_TEST") == "test" && Helpers.env(:test_mode, "real") == "real")
   end
 end
