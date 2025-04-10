@@ -5,9 +5,9 @@ defmodule Media.MixProject do
     [
       app: :media,
       version: "0.1.0",
-      elixir: "~> 1.7",
+      elixir: "~> 1.14",  # Updated to support newer Elixir versions
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: [:phoenix, :gettext] ++ Mix.compilers(),
+      compilers: Mix.compilers(),  # Removed :phoenix compiler as it's deprecated
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
@@ -47,37 +47,38 @@ defmodule Media.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.5.7"},
-      {:phoenix_ecto, "~> 4.2"},
-      {:ecto_sql, "~> 3.6"},
+      {:phoenix, "~> 1.7.0"},  # Updated to Phoenix 1.7
+      {:phoenix_ecto, "~> 4.4"},
+      {:ecto_sql, "~> 3.10"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 2.11"},
-      {:phoenix_live_dashboard, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
-      {:gettext, "~> 0.11"},
-      {:jason, "~> 1.0"},
-      {:plug_cowboy, "~> 2.0"},
-      {:ex_aws, "~> 2.1"},
-      {:ex_aws_s3, "~> 2.0"},
-      {:sweet_xml, ">= 0.0.0"},
-      {:elixir_xml_to_map, "~> 0.1"},
-      {:elixir_uuid, "~> 1.2.1"},
-      {:ex_aws_sts, "~> 2.0"},
-      {:hackney, "~> 1.9"},
+      {:phoenix_html, "~> 3.3"},  # Updated
+      {:phoenix_live_dashboard, "~> 0.8.0"},  # Updated
+      {:telemetry_metrics, "~> 0.6"},  # Updated
+      {:telemetry_poller, "~> 1.0"},  # Updated to fix conflict
+      {:gettext, "~> 0.22"},  # Updated
+      {:jason, "~> 1.4"},  # Updated
+      {:plug_cowboy, "~> 2.6"},  # Updated
+      {:ex_aws, "~> 2.4"},  # Updated
+      {:ex_aws_s3, "~> 2.4"},  # Updated
+      {:sweet_xml, "~> 0.7.3"},  # Updated with specific version
+      {:elixir_xml_to_map, "~> 2.0"},  # Updated
+      {:elixir_uuid, "~> 1.2"},
+      {:ex_aws_sts, "~> 2.2"},  # Updated
+      {:hackney, "~> 1.18"},  # Updated
       {:sigaws, "~> 0.7"},
-      {:httpoison, "~> 1.8", override: true},
-      {:poison, "~> 3.1"},
-      {:morphix, "~> 0.8.0"},
-      {:mongodb, "~> 0.5.1"},
-      {:thumbnex, "~> 0.3.4"},
+      {:httpoison, "~> 2.1", override: true},  # Updated
+      {:poison, "~> 5.0"},  # Updated
+      {:morphix, "~> 0.8.1"},  # Updated
+      {:mongodb_driver, "~> 1.0", hex: :mongodb_driver}, # Replaced mongodb with mongodb_driver
+      {:thumbnex, "~> 0.4.0"},  # Updated
       {:temp, "~> 0.4"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.10", only: :test},
-      {:mock, "~> 0.3.0", only: :test},
-      {:plug_crypto, "~> 1.2.2"}
+      {:phoenix_live_reload, "~> 1.4", only: :dev},  # Updated
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},  # Updated
+      {:ex_doc, "~> 0.29", only: :dev, runtime: false},  # Updated
+      {:excoveralls, "~> 0.16", only: :test},  # Updated
+      {:mock, "~> 0.3.7", only: :test},  # Updated
+      {:plug_crypto, "~> 1.2"},  # Updated
+      {:phoenix_view, "~> 2.0"}  # Added for Phoenix 1.7 compatibility
     ]
   end
 

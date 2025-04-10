@@ -10,7 +10,7 @@ defmodule Media.PostgreSQL.Schema do
       embeds_many(:files, File, on_replace: :delete)
       field(:type, :string)
       field(:locked_status, :string, default: "locked")
-      field(:private_status, :string, dedfault: "private")
+      field(:private_status, :string, default: "private")
       field(:seo_tag, :string)
 
       timestamps()
@@ -27,7 +27,7 @@ defmodule Media.PostgreSQL.Schema do
   alias Media.Schema.File
   @fields ~w(title author tags type locked_status private_status seo_tag namespace)a
   @derive {Jason.Encoder,
-           only: @fields ++ [:id, :number_of_contents, :files, :updated_at, :inserted_at]}
+           only: @fields ++ [:id, :files, :updated_at, :inserted_at]}
   schema "media" do
     field(:tags, {:array, :string})
     field(:title, :string)
@@ -35,7 +35,7 @@ defmodule Media.PostgreSQL.Schema do
     embeds_many(:files, File, on_replace: :delete)
     field(:type, :string)
     field(:locked_status, :string, default: "locked")
-    field(:private_status, :string, dedfault: "private")
+    field(:private_status, :string, default: "private")
     field(:seo_tag, :string)
     field(:namespace, :string)
 
