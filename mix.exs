@@ -53,7 +53,7 @@ defmodule Media.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 3.3"},  # Updated
       {:phoenix_live_dashboard, "~> 0.8.0"},  # Updated
-      {:telemetry_metrics, "~> 0.6"},  # Updated
+      {:telemetry_metrics, "~> 1.0"},  # Updated
       {:telemetry_poller, "~> 1.0"},  # Updated to fix conflict
       {:gettext, "~> 0.22"},  # Updated
       {:jason, "~> 1.4"},  # Updated
